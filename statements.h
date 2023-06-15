@@ -1,5 +1,8 @@
 // Provided under the GPL v2 license. See the included LICENSE.txt for details.
 
+#ifndef STATEMENTS_H
+#define STATEMENTS_H
+
 #define _readpaddle 1
 #define _player1colors 2
 #define _playercolors 4
@@ -9,8 +12,25 @@
 #define _background 64
 #define MAX_EXTRAS 5
 
+#include <stdbool.h>
 #include <stdio.h>
 
+// initialization function
+extern void init_statement_processor();
+
+// functions to process source file and output file
+extern void use_source_file(FILE *sourceFileToUse);
+extern void use_output_file(FILE *outputFileToUse);
+extern bool read_source_line(char *data);
+extern void trim_string(char *data, bool addEol);
+
+// functions for debugging
+extern void print_statement_breakdown(char **stmtList);
+
+// functions for compiler output
+extern void write_footer();
+
+// statement processing functions
 void doextra(char *);
 void callmacro(char **);
 void do_stack(char **);
@@ -46,7 +66,7 @@ void compressdata(char **, int, int);
 void shiftdata(char **, int);
 int findpoint(char *);
 int getindex(char *, char *);
-int bbgetline();
+int bbgetlinenumber();
 void doend();
 int bbank();
 int bbs();
@@ -60,7 +80,7 @@ int findlabel(char **, int i);
 void add_includes(char *);
 void create_includes(char *);
 void incline();
-void init_includes();
+void init_includes(char *path);
 void invalidate_Areg();
 void shiftdata(char **, int);
 void compressdata(char **, int, int);
@@ -102,5 +122,6 @@ void bvs(char *);
 int printimmed(char *);
 int isimmed(char *);
 int number(unsigned char);
-void header_open(FILE *);
-void header_write(FILE *, char *);
+void output_redefvars_file(char *);
+
+#endif
