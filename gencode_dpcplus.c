@@ -160,3 +160,19 @@ void pfclear_DPCPlus(char **statement) {
     printf("	lda #255\n	sta CALLFUNCTION\n");
 }
 
+
+void genCode_DPCPlusCollision(char firstPlayerParam, char secondPlayerParam) {
+    printf("	lda #<C_function\n");
+    printf("	sta DF0LOW\n");
+    printf("	lda #(>C_function) & $0F\n");
+    printf("	sta DF0HI\n");
+    printf("  lda #20\n");
+    printf("  sta DF0WRITE\n");
+    printf("  lda #%c\n", firstPlayerParam);
+    printf("  sta DF0WRITE\n");
+    printf("  lda #%c\n", secondPlayerParam);
+    printf("  sta DF0WRITE\n");
+    printf("  lda #255\n");
+    printf("  sta CALLFUNCTION\n");
+    printf("  BIT DF0DATA\n");
+}
