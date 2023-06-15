@@ -227,10 +227,7 @@ void keywords(char **cstatement) {
     for (i = 0; i < 200; i++) {
         statement[i] = cstatement[i];
         trim_string(statement[i], false);
-        //if (cstatement[i] == 0 || cstatement[i][0] == 0) break;
-        //fprintf(stderr, "\"%s\"\n",cstatement[i]);
     }
-    //fprintf(stderr, "\n");
 
 
     for (i = 0; i < 200; ++i) {
@@ -251,8 +248,16 @@ void keywords(char **cstatement) {
 
         if (command[0] == '\0') {
             return;
+        } else if (command[0] == ' ') {
+            return;
         } else if (!strncmp(command, "def\0", 4)) {
             return;
+        } else if (!strncmp(command, "rem\0", 4)) {
+            rem(statement);
+            return;
+        } else if (!strncmp(command, "if\0", 3)) {
+            doif(statement);
+            break;
         } else if (!strncmp(statement[0], "end\0", 4))
             endfunction();
         else {
@@ -265,12 +270,7 @@ void keywords(char **cstatement) {
                 add_inline(param);
             else if (!strncmp(command, "function\0", 9))
                 function(statement);
-            else if (command[0] == ' ') {
-                return;
-            } else if (!strncmp(command, "if\0", 3)) {
-                doif(statement);
-                break;
-            } else if (!strncmp(command, "goto\0", 5))
+            else if (!strncmp(command, "goto\0", 5))
                 dogoto(statement);
             else if (!strncmp(command, "bank\0", 5))
                 newbank(atoi(param));
@@ -306,10 +306,7 @@ void keywords(char **cstatement) {
                 doasm();
             else if (!strncmp(command, "pop\0", 4))
                 dopop();
-            else if (!strncmp(command, "rem\0", 4)) {
-                rem(statement);
-                return;
-            } else if (!strncmp(command, "set\0", 4))
+            else if (!strncmp(command, "set\0", 4))
                 set(statement);
             else if (!strncmp(command, "return\0", 7))
                 doreturn(statement);
