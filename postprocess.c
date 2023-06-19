@@ -69,10 +69,15 @@ int main(int argc, char *argv[]) {
             }
         }
         while (fgets(asmline, 500, asmfile)) {
+
+            // check for last bank split point within the bB source file
             if (!strncmp(asmline, "; bB.asm file is split here", 20)) {
-                writebBfile[bB]++;
+
+                writebBfile[bB]++;  // flag the split
+
                 readbBfile[bB] = (char **) malloc(sizeof(char *) * 50000);
                 readbBfile[bB][writebBfile[bB]] = (char *) malloc(strlen(line) + 3);
+
                 sprintf(readbBfile[bB][writebBfile[bB]], ";%s\n", line);
             }
             if (!writebBfile[bB])
@@ -83,6 +88,8 @@ int main(int argc, char *argv[]) {
             }
         }
         fclose(asmfile);
+
+        // if file has been split at this point, move to next flag index
         if (writebBfile[bB])
             bB++;
         // if (writebBfile) fclose(bBfile);
