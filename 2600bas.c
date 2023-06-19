@@ -7,12 +7,68 @@
 #include "statements.h"
 #include "keywords.h"
 #include "lexer.h"
-#include <math.h>
 #include <stdbool.h>
 
 #define BB_VERSION_INFO "batari Basic v1.8 (c)2023\n"
 
+// variables used to process "def" statements
+char def[500][100];
+char defr[500][100];
+char finalcode[500];
+char *codeadd;
+char mycode[500];
+int defi = 0;
 
+// look for defines and remember them
+void processDefs(char *code) {
+    int i,j;
+    strcpy(mycode, code);
+    for (i = 0; i < 500; ++i)
+        if (code[i] == ' ')
+            break;
+    if (code[i + 1] == 'd' && code[i + 2] == 'e' && code[i + 3] == 'f' &&
+        code[i + 4] == ' ') {            // found a define
+        i += 5;
+        for (j = 0; code[i] != ' '; i++) {
+            def[defi][j++] = code[i];    // get the define
+        }
+        def[defi][j] = '\0';
+
+        i += 3;
+
+        for (j = 0; code[i] != '\0'; i++) {
+            defr[defi][j++] = code[i];    // get the definition
+        }
+        defr[defi][j] = '\0';
+        removeCR(defr[defi]);
+        printf(";.%s.%s.\n", def[defi], defr[defi]);
+        defi++;
+    } else if (defi) {
+        for (i = 0; i < defi; ++i) {
+            codeadd = NULL;
+            finalcode[0] = '\0';
+            int defcount = 0;
+            while (1) {
+                if (defcount++ > 500) {
+                    fprintf(stderr, "(%d) Infinitely repeating definition or too many instances of a definition\n",
+                            bbgetlinenumber());
+                    exit(1);
+                }
+                codeadd = strstr(mycode, def[i]);
+                if (codeadd == NULL)
+                    break;
+                for (j = 0; j < 500; ++j)
+                    finalcode[j] = '\0';
+                strncpy(finalcode, mycode, strlen(mycode) - strlen(codeadd));
+                strcat(finalcode, defr[i]);
+                strcat(finalcode, codeadd + strlen(def[i]));
+                strcpy(mycode, finalcode);
+            }
+        }
+    }
+    if (strcmp(mycode, code)!=0)
+        strcpy(code, mycode);
+}
 
 int main(int argc, char *argv[]) {
     char **statement;
@@ -25,12 +81,7 @@ int main(int argc, char *argv[]) {
     char *includes_file = "default.inc";
     char *redefVars_filename = "2600basic_variable_redefs.h";
     char *path = 0;
-    char def[500][100];
-    char defr[500][100];
-    char finalcode[500];
-    char *codeadd;
-    char mycode[500];
-    int defi = 0;
+
 
     // get command line arguments
     while ((i = getopt(argc, argv, "i:r:v")) != -1) {
@@ -85,57 +136,12 @@ int main(int argc, char *argv[]) {
         incline();
         strcpy(displaycode, code);
 
-        // look for defines and remember them
-        strcpy(mycode, code);
-        for (i = 0; i < 500; ++i)
-            if (code[i] == ' ')
-                break;
-        if (code[i + 1] == 'd' && code[i + 2] == 'e' && code[i + 3] == 'f' &&
-            code[i + 4] == ' ') {            // found a define
-            i += 5;
-            for (j = 0; code[i] != ' '; i++) {
-                def[defi][j++] = code[i];    // get the define
-            }
-            def[defi][j] = '\0';
-
-            i += 3;
-
-            for (j = 0; code[i] != '\0'; i++) {
-                defr[defi][j++] = code[i];    // get the definition
-            }
-            defr[defi][j] = '\0';
-            removeCR(defr[defi]);
-            printf(";.%s.%s.\n", def[defi], defr[defi]);
-            defi++;
-        } else if (defi) {
-            for (i = 0; i < defi; ++i) {
-                codeadd = NULL;
-                finalcode[0] = '\0';
-                int defcount = 0;
-                while (1) {
-                    if (defcount++ > 500) {
-                        fprintf(stderr, "(%d) Infinitely repeating definition or too many instances of a definition\n",
-                                bbgetlinenumber());
-                        exit(1);
-                    }
-                    codeadd = strstr(mycode, def[i]);
-                    if (codeadd == NULL)
-                        break;
-                    for (j = 0; j < 500; ++j)
-                        finalcode[j] = '\0';
-                    strncpy(finalcode, mycode, strlen(mycode) - strlen(codeadd));
-                    strcat(finalcode, defr[i]);
-                    strcat(finalcode, codeadd + strlen(def[i]));
-                    strcpy(mycode, finalcode);
-                }
-            }
-        }
-        if (strcmp(mycode, code)!=0)
-            strcpy(code, mycode);
-
         // check for end of file
         if (failedToRead)
             break;        //end of file
+
+        // process any "def" statements
+        processDefs(code);
 
         // tokenize the statement
         tokenize(statement, code, bbgetlinenumber());
@@ -152,7 +158,7 @@ int main(int argc, char *argv[]) {
         }
 
         if (strncmp(statement[0], "end\0", 3)!=0)
-            printf(".%s ; %s\n", statement[0], displaycode);    //    printf(".%s ; %s\n",statement[0],code);
+            printf(".%s ; %s\n", statement[0], displaycode);
         else
             doend();
 
