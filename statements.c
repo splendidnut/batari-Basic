@@ -4623,51 +4623,55 @@ void set(char **statement) {
             _no_blank_lines | _readpaddle,
             255
     };
-    if (!strncasecmp(statement[2], "tv\0", 2)) {
-        if (!strncasecmp(statement[3], "ntsc\0", 4)) {
+
+    char *optionName = statement[2];
+    char *optionValue = statement[3];
+
+    if (!strncasecmp(optionName, "tv\0", 2)) {
+        if (!strncasecmp(optionValue, "ntsc\0", 4)) {
             // pick constant timer values for now, later maybe add more lines
             strcpy(redefined_variables[numredefvars++], "overscan_time = 37");
             strcpy(redefined_variables[numredefvars++], "vblank_time = 43");
-        } else if (!strncasecmp(statement[3], "pal\0", 3)) {
+        } else if (!strncasecmp(optionValue, "pal\0", 3)) {
             // 36 and 48 scanlines, respectively
             strcpy(redefined_variables[numredefvars++], "overscan_time = 82");
             strcpy(redefined_variables[numredefvars++], "vblank_time = 58");
         } else
             prerror("set TV: invalid TV type\n");
-    } else if (!strncmp(statement[2], "smartbranching\0", 14)) {
-        if (!strncmp(statement[3], "on\0", 2))
+    } else if (!strncmp(optionName, "smartbranching\0", 14)) {
+        if (!strncmp(optionValue, "on\0", 2))
             smartbranching = 1;
         else
             smartbranching = 0;
-    } else if (!strncmp(statement[2], "dpcspritemax\0", 12)) {
-        v = atoi(statement[3]);
+    } else if (!strncmp(optionName, "dpcspritemax\0", 12)) {
+        v = atoi(optionValue);
         if ((v == 0) || (v > 9)) {
             prerror("set dpcspritemax: invalid value\n");
             exit(1);
         }
         sprintf(redefined_variables[numredefvars++], "dpcspritemax = %d", v);
-    } else if (!strncmp(statement[2], "romsize\0", 7)) {
-        set_romsize(statement[3]);
-    } else if (!strncmp(statement[2], "optimization\0", 5)) {
-        if (!strncmp(statement[3], "speed\0", 5)) {
+    } else if (!strncmp(optionName, "romsize\0", 7)) {
+        set_romsize(optionValue);
+    } else if (!strncmp(optionName, "optimization\0", 5)) {
+        if (!strncmp(optionValue, "speed\0", 5)) {
             optimization |= 1;
         }
-        if (!strncmp(statement[3], "size\0", 4)) {
+        if (!strncmp(optionValue, "size\0", 4)) {
             optimization |= 2;
         }
-        if (!strncmp(statement[3], "noinlinedata\0", 4)) {
+        if (!strncmp(optionValue, "noinlinedata\0", 4)) {
             optimization |= 4;
         }
-        if (!strncmp(statement[3], "inlinerand\0", 4)) {
+        if (!strncmp(optionValue, "inlinerand\0", 4)) {
             optimization |= 8;
         }
-        if (!strncmp(statement[3], "none\0", 4)) {
+        if (!strncmp(optionValue, "none\0", 4)) {
             optimization = 0;
         }
-    } else if (!strncmp(statement[2], "kernal\0", 6)) {
+    } else if (!strncmp(optionName, "kernal\0", 6)) {
         prerror
                 ("The proper spelling is \"kernel.\"  With an e.  Please make a note of this to save yourself from further embarassment.\n");
-    } else if (!strncmp(statement[2], "kernel_options\0", 10)) {
+    } else if (!strncmp(optionName, "kernel_options\0", 10)) {
         i = 3;
         kernel_options = 0;
         while (((unsigned char) statement[i][0] > (unsigned char) 64)
@@ -4732,13 +4736,13 @@ void set(char **statement) {
             if (kernel_options == valid_kernel_combos[i++])
                 break;
         }
-    } else if (!strncmp(statement[2], "kernel\0", 6)) {
-        if (!strncmp(statement[3], "multisprite\0", 11)) {
+    } else if (!strncmp(optionName, "kernel\0", 6)) {
+        if (!strncmp(optionValue, "multisprite\0", 11)) {
             multisprite = 1;
             strcpy(redefined_variables[numredefvars++], "multisprite = 1");
             create_includes("multisprite.inc");
             ROMpf = 1;
-        } else if (!strncmp(statement[3], "DPC\0", 3)) {
+        } else if (!strncmp(optionValue, "DPC\0", 3)) {
             multisprite = 2;
             strcpy(redefined_variables[numredefvars++], "multisprite = 2");
             create_includes("DPCplus.inc");
@@ -4747,21 +4751,21 @@ void set(char **statement) {
             strcpy(redefined_variables[numredefvars++], "bankswitch_hotspot = $1FF6");
             strcpy(redefined_variables[numredefvars++], "bankswitch = 28");
             strcpy(redefined_variables[numredefvars++], "bs_mask = 7");
-        } else if (!strncmp(statement[3], "multisprite_no_include\0", 11)) {
+        } else if (!strncmp(optionValue, "multisprite_no_include\0", 11)) {
             multisprite = 1;
             strcpy(redefined_variables[numredefvars++], "multisprite = 1");
             ROMpf = 1;
         } else
             prerror("set kernel: kernel name unknown or unspecified\n");
-    } else if (!strncmp(statement[2], "debug\0", 5)) {
-        if (!strncmp(statement[3], "cyclescore\0", 10)) {
+    } else if (!strncmp(optionName, "debug\0", 5)) {
+        if (!strncmp(optionValue, "cyclescore\0", 10)) {
             strcpy(redefined_variables[numredefvars++], "debugscore = 1");
-        } else if (!strncmp(statement[3], "cycles\0", 6)) {
+        } else if (!strncmp(optionValue, "cycles\0", 6)) {
             strcpy(redefined_variables[numredefvars++], "debugcycles = 1");
         } else
             prerror("set debug: debugging mode unknown\n");
-    } else if (!strncmp(statement[2], "legacy\0", 6)) {
-        sprintf(redefined_variables[numredefvars++], "legacy = %d", (int) (100 * (atof(statement[3]))));
+    } else if (!strncmp(optionName, "legacy\0", 6)) {
+        sprintf(redefined_variables[numredefvars++], "legacy = %d", (int) (100 * (atof(optionValue))));
     } else
         prerror("set: unknown parameter\n");
 
