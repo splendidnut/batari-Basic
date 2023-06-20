@@ -68,8 +68,6 @@ int findpoint(char *);
 int getindex(char *, char *);
 int bbgetlinenumber();
 void doend();
-int bbank();
-int bbs();
 void barf_sprite_data();
 void printindex(char *, int);
 void loadindex(char *);

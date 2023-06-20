@@ -779,14 +779,6 @@ void playfield(char **statement) {
 
 }
 
-int bbank() {
-    return bank;
-}
-
-int bbs() {
-    return bs;
-}
-
 void jsr(char *location) {
 // determines whether to use the standard jsr (for 2k/4k or bankswitched stuff in current bank)
 // or to switch banks before calling the routine
