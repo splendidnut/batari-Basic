@@ -81,14 +81,22 @@ int main(int argc, char *argv[]) {
     char *includes_file = "default.inc";
     char *redefVars_filename = "2600basic_variable_redefs.h";
     char *path = 0;
-
+    char *outputFilename = 0;
+    char *mySourceFileName = 0;
 
     // get command line arguments
-    while ((i = getopt(argc, argv, "i:r:v")) != -1) {
+    while ((i = getopt(argc, argv, "i:o:s:r:v")) != -1) {
         switch (i) {
             case 'i':
                 path = strdup(optarg);
                 break;
+            case 'o':
+                outputFilename = strdup(optarg);
+                break;
+            case 's':
+                mySourceFileName = strdup(optarg);
+                break;
+
             case 'r':
                 //redefVars_filename = (char *) malloc(100);
                 //strcpy(redefVars_filename, optarg);
@@ -107,13 +115,21 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, BB_VERSION_INFO);
 
     // provide statement processor with input stream
-    char *mySourceFileName = "1942_HSC.bas";
-    FILE *mySourceFile = fopen(mySourceFileName, "r");
+    FILE *mySourceFile;
+    if (mySourceFileName) {
+        mySourceFile = fopen(mySourceFileName, "r");
+    } else {
+        mySourceFile = stdin;
+    }
     use_source_file(mySourceFile);
 
-    FILE *outFile = fopen("bB.asm", "w");
+    // create + open output file
+    if (!outputFilename) outputFilename = "bB.asm";
+    FILE *outFile = fopen(outputFilename, "w");
     use_output_file(outFile);
-    fprintf(outFile, "game\n");        // label for start of game
+
+    // label for start of game
+    fprintf(outFile, "game\n");
 
     init_includes(path);
 
