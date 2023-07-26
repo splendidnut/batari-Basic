@@ -110,6 +110,8 @@ void use_output_file(FILE *outputFileToUse) {
     outputFile = outputFileToUse;
 }
 
+FILE *getOutputFile() { return outputFile; }
+
 /**
  * Read line from source code stream
  *
@@ -167,26 +169,26 @@ void print_statement_breakdown(char **stmtList) {
 
 
 void write_footer() {
-    printf(" if ECHOFIRST\n");
+    fprintf(outputFile, " if ECHOFIRST\n");
     if (bs == 28) {
-        printf("       echo \"    \",[(DPC_graphics_end - *)]d , \"bytes of ROM space left in graphics bank");
+        fprintf(outputFile, "       echo \"    \",[(DPC_graphics_end - *)]d , \"bytes of ROM space left in graphics bank");
     } else {
-        printf("       echo \"    \",[(scoretable - *)]d , \"bytes of ROM space left");
+        fprintf(outputFile, "       echo \"    \",[(scoretable - *)]d , \"bytes of ROM space left");
         if (bs == 8)
-            printf(" in bank 2");
+            fprintf(outputFile, " in bank 2");
         if (bs == 16)
-            printf(" in bank 4");
+            fprintf(outputFile, " in bank 4");
         if (bs == 32)
-            printf(" in bank 8");
+            fprintf(outputFile, " in bank 8");
         if (bs == 64)
-            printf(" in bank 16");
+            fprintf(outputFile, " in bank 16");
     }
-    printf("\")\n");
-    printf(" endif \n");
-    printf("ECHOFIRST = 1\n");
-    printf(" \n");
-    printf(" \n");
-    printf(" \n");
+    fprintf(outputFile, "\")\n");
+    fprintf(outputFile, " endif \n");
+    fprintf(outputFile, "ECHOFIRST = 1\n");
+    fprintf(outputFile, " \n");
+    fprintf(outputFile, " \n");
+    fprintf(outputFile, " \n");
 }
 
 //------------------------------------------------------
@@ -196,7 +198,7 @@ void currdir_foundmsg(char *foundfile) {
 }
 
 void doreboot() {
-    printf("	JMP ($FFFC)\n");
+    fprintf(outputFile, "	JMP ($FFFC)\n");
 }
 
 int linenum() {
@@ -208,7 +210,7 @@ void vblank() {
     // code that will be run in the vblank area
     // subject to limitations!
     // must exit with a return [thisbank if bankswitching used]
-    printf("vblank_bB_code\n");
+    fprintf(outputFile, "vblank_bB_code\n");
 }
 
 
@@ -225,12 +227,12 @@ void pfclear(char **statement) {
     }
 
     if ((!statement[2][0]) || (statement[2][0] == ':'))
-        printf("	LDA #0\n");
+        fprintf(outputFile, "	LDA #0\n");
     else {
         index = getindex(statement[2], &getindex0[0]);
         if (index)
             loadindex(&getindex0[0]);
-        printf("	LDA ");
+        fprintf(outputFile, "	LDA ");
         printindex(statement[2], index);
     }
     removeCR(statement[1]);
@@ -245,16 +247,16 @@ void bkcolors_DPCPlus(char **statement) {
 
     sprintf(label, "backgroundcolor%s\n", statement[0]);
     removeCR(label);
-    printf("	LDA #<BKCOLS\n");
-    printf("	STA DF0LOW\n");
-    printf("	LDA #(>BKCOLS) & $0F\n");
-    printf("	STA DF0HI\n");
-    printf("	LDA #<%s\n", label);
-    printf("	STA PARAMETER\n");
-    printf("	LDA #((>%s) & $0f) | (((>%s) / 2) & $70)\n", label, label);    // DPC+
-    printf("	STA PARAMETER\n");
-    printf("	LDA #0\n");
-    printf("	STA PARAMETER\n");
+    fprintf(outputFile, "	LDA #<BKCOLS\n");
+    fprintf(outputFile, "	STA DF0LOW\n");
+    fprintf(outputFile, "	LDA #(>BKCOLS) & $0F\n");
+    fprintf(outputFile, "	STA DF0HI\n");
+    fprintf(outputFile, "	LDA #<%s\n", label);
+    fprintf(outputFile, "	STA PARAMETER\n");
+    fprintf(outputFile, "	LDA #((>%s) & $0f) | (((>%s) / 2) & $70)\n", label, label);    // DPC+
+    fprintf(outputFile, "	STA PARAMETER\n");
+    fprintf(outputFile, "	LDA #0\n");
+    fprintf(outputFile, "	STA PARAMETER\n");
 
     sprintf(sprite_data[sprite_index++], "%s\n", label);
     while (1) {
@@ -272,10 +274,10 @@ void bkcolors_DPCPlus(char **statement) {
     }
     if (l > 255)
         prerror("Error: too much data in bkcolors declaration\n");
-    printf("	LDA #%d\n", l);
-    printf("	STA PARAMETER\n");
-    printf("	LDA #1\n");
-    printf("	STA CALLFUNCTION\n");
+    fprintf(outputFile, "	LDA #%d\n", l);
+    fprintf(outputFile, "	STA PARAMETER\n");
+    fprintf(outputFile, "	LDA #1\n");
+    fprintf(outputFile, "	STA CALLFUNCTION\n");
 }
 
 void bkcolors(char **statement) {
@@ -334,23 +336,23 @@ void playfieldcolorandheight(char **statement) {
                     break;
                 removeCR(data);
                 if (!pfpos)
-                    printf(" lda #%s\n sta playfieldpos\n", data);
+                    fprintf(outputFile, " lda #%s\n sta playfieldpos\n", data);
                 else
                     sprintf(sprite_data[sprite_index++], " .byte %s\n", data);
                 pfpos++;
             }
-            printf(" ifconst pfres\n");
-            printf(" lda #>(pfcolorlabel%d-pfres-9)\n", indexsave);
-            printf(" else\n");
-            printf(" lda #>(pfcolorlabel%d-21)\n", indexsave);
-            printf(" endif\n");
-            printf(" sta pfcolortable+1\n");
-            printf(" ifconst pfres\n");
-            printf(" lda #<(pfcolorlabel%d-pfres-9)\n", indexsave);
-            printf(" else\n");
-            printf(" lda #<(pfcolorlabel%d-21)\n", indexsave);
-            printf(" endif\n");
-            printf(" sta pfcolortable\n");
+            fprintf(outputFile, " ifconst pfres\n");
+            fprintf(outputFile, " lda #>(pfcolorlabel%d-pfres-9)\n", indexsave);
+            fprintf(outputFile, " else\n");
+            fprintf(outputFile, " lda #>(pfcolorlabel%d-21)\n", indexsave);
+            fprintf(outputFile, " endif\n");
+            fprintf(outputFile, " sta pfcolortable+1\n");
+            fprintf(outputFile, " ifconst pfres\n");
+            fprintf(outputFile, " lda #<(pfcolorlabel%d-pfres-9)\n", indexsave);
+            fprintf(outputFile, " else\n");
+            fprintf(outputFile, " lda #<(pfcolorlabel%d-21)\n", indexsave);
+            fprintf(outputFile, " endif\n");
+            fprintf(outputFile, " sta pfcolortable\n");
         } else if ((kernel_options & 48) != 48) {
             prerror("PFheights kernel option not set");
             exit(1);
@@ -384,7 +386,7 @@ void playfieldcolorandheight(char **statement) {
                     break;
                 removeCR(data);
                 if (!pfpos)
-                    printf(" lda #%s\n sta playfieldpos\n", data);
+                    fprintf(outputFile, " lda #%s\n sta playfieldpos\n", data);
                 else
                     sprintf(sprite_data[sprite_index++], " .byte %s,0,0,0\n", data);
                 pfpos++;
@@ -396,16 +398,16 @@ void playfieldcolorandheight(char **statement) {
             l = 0;
             sprintf(label, "playfieldcolor%s\n", statement[0]);
             removeCR(label);
-            printf("	LDA #<PFCOLS\n");
-            printf("	STA DF0LOW\n");
-            printf("	LDA #(>PFCOLS) & $0F\n");
-            printf("	STA DF0HI\n");
-            printf("	LDA #<%s\n", label);
-            printf("	STA PARAMETER\n");
-            printf("	LDA #((>%s) & $0f) | (((>%s) / 2) & $70)\n", label, label);    // DPC+
-            printf("	STA PARAMETER\n");
-            printf("	LDA #0\n");
-            printf("	STA PARAMETER\n");
+            fprintf(outputFile, "	LDA #<PFCOLS\n");
+            fprintf(outputFile, "	STA DF0LOW\n");
+            fprintf(outputFile, "	LDA #(>PFCOLS) & $0F\n");
+            fprintf(outputFile, "	STA DF0HI\n");
+            fprintf(outputFile, "	LDA #<%s\n", label);
+            fprintf(outputFile, "	STA PARAMETER\n");
+            fprintf(outputFile, "	LDA #((>%s) & $0f) | (((>%s) / 2) & $70)\n", label, label);    // DPC+
+            fprintf(outputFile, "	STA PARAMETER\n");
+            fprintf(outputFile, "	LDA #0\n");
+            fprintf(outputFile, "	STA PARAMETER\n");
 
             sprintf(sprite_data[sprite_index++], "%s\n", label);
             while (1) {
@@ -423,10 +425,10 @@ void playfieldcolorandheight(char **statement) {
             }
             if (l > 255)
                 prerror("Error: too much data in pfcolor declaration\n");
-            printf("	LDA #%d\n", l);
-            printf("	STA PARAMETER\n");
-            printf("	LDA #1\n");
-            printf("	STA CALLFUNCTION\n");
+            fprintf(outputFile, "	LDA #%d\n", l);
+            fprintf(outputFile, "	STA PARAMETER\n");
+            fprintf(outputFile, "	LDA #1\n");
+            fprintf(outputFile, "	STA CALLFUNCTION\n");
             return;        // get out
         }
         if ((kernel_options & 48) == 16) {
@@ -461,7 +463,7 @@ void playfieldcolorandheight(char **statement) {
                     break;
                 removeCR(data);
                 if (!pfpos) {
-                    printf(" lda #%s\n sta COLUPF\n", data);
+                    fprintf(outputFile, " lda #%s\n sta COLUPF\n", data);
                     if (!pfcolornumber)
                         pfcolorindexsave = sprite_index - 1;
                     pfcolornumber = (pfcolornumber + 1) % 4;
@@ -493,22 +495,22 @@ void playfieldcolorandheight(char **statement) {
                     }
                 }
             }
-            printf(" ifconst pfres\n");
-            printf(" lda #>(pfcolorlabel%d-%d+pfres*pfwidth)\n", pfcolorindexsave,
+            fprintf(outputFile, " ifconst pfres\n");
+            fprintf(outputFile, " lda #>(pfcolorlabel%d-%d+pfres*pfwidth)\n", pfcolorindexsave,
                    85 + 48 - pfcolornumber - ((((pfcolornumber << 1) | (pfcolornumber << 2)) ^ 4) & 4));
-            printf(" else\n");
-            printf(" lda #>(pfcolorlabel%d-%d)\n", pfcolorindexsave,
+            fprintf(outputFile, " else\n");
+            fprintf(outputFile, " lda #>(pfcolorlabel%d-%d)\n", pfcolorindexsave,
                    85 - pfcolornumber - ((((pfcolornumber << 1) | (pfcolornumber << 2)) ^ 4) & 4));
-            printf(" endif\n");
-            printf(" sta pfcolortable+1\n");
-            printf(" ifconst pfres\n");
-            printf(" lda #<(pfcolorlabel%d-%d+pfres*pfwidth)\n", pfcolorindexsave,
+            fprintf(outputFile, " endif\n");
+            fprintf(outputFile, " sta pfcolortable+1\n");
+            fprintf(outputFile, " ifconst pfres\n");
+            fprintf(outputFile, " lda #<(pfcolorlabel%d-%d+pfres*pfwidth)\n", pfcolorindexsave,
                    85 + 48 - pfcolornumber - ((((pfcolornumber << 1) | (pfcolornumber << 2)) ^ 4) & 4));
-            printf(" else\n");
-            printf(" lda #<(pfcolorlabel%d-%d)\n", pfcolorindexsave,
+            fprintf(outputFile, " else\n");
+            fprintf(outputFile, " lda #<(pfcolorlabel%d-%d)\n", pfcolorindexsave,
                    85 - pfcolornumber - ((((pfcolornumber << 1) | (pfcolornumber << 2)) ^ 4) & 4));
-            printf(" endif\n");
-            printf(" sta pfcolortable\n");
+            fprintf(outputFile, " endif\n");
+            fprintf(outputFile, " sta pfcolortable\n");
         } else if ((kernel_options & 48) != 48) {
             prerror("PFcolors kernel option not set");
             exit(1);
@@ -525,7 +527,7 @@ void playfieldcolorandheight(char **statement) {
                 removeCR(data);
 
                 if (!pfpos)
-                    printf(" lda #%s\n sta COLUPF\n", data);
+                    fprintf(outputFile, " lda #%s\n sta COLUPF\n", data);
                 else {
                     j = 0;
                     i = 0;
@@ -558,36 +560,36 @@ void jsrbank1(char *location) {
 // determines whether to use the standard jsr (for 2k/4k or bankswitched stuff in current bank)
 // or to switch banks before calling the routine
     if ((!bs) || (bank == 1)) {
-        printf(" jsr %s\n", location);
+        fprintf(outputFile, " jsr %s\n", location);
         return;
     }
 // we need to switch banks
-    printf(" sta temp7\n");
+    fprintf(outputFile, " sta temp7\n");
 // first create virtual return address
     // if it's 64k banks, store the bank directly in the high nibble
     if (bs == 64)
-        printf(" lda #(((>(ret_point%d-1)) & $0F) | $%1x0) \n", ++numjsrs, bank - 1);
+        fprintf(outputFile, " lda #(((>(ret_point%d-1)) & $0F) | $%1x0) \n", ++numjsrs, bank - 1);
     else
-        printf(" lda #>(ret_point%d-1)\n", ++numjsrs);
-    printf(" pha\n");
+        fprintf(outputFile, " lda #>(ret_point%d-1)\n", ++numjsrs);
+    fprintf(outputFile, " pha\n");
 
 
-    printf(" lda #<(ret_point%d-1)\n", numjsrs);
-    printf(" pha\n");
+    fprintf(outputFile, " lda #<(ret_point%d-1)\n", numjsrs);
+    fprintf(outputFile, " pha\n");
 // next we must push the place to jsr to
-    printf(" lda #>(%s-1)\n", location);
-    printf(" pha\n");
-    printf(" lda #<(%s-1)\n", location);
-    printf(" pha\n");
+    fprintf(outputFile, " lda #>(%s-1)\n", location);
+    fprintf(outputFile, " pha\n");
+    fprintf(outputFile, " lda #<(%s-1)\n", location);
+    fprintf(outputFile, " pha\n");
 // now store regs on stack
-    printf(" lda temp7\n");
-    printf(" pha\n");
-    printf(" txa\n");
-    printf(" pha\n");
+    fprintf(outputFile, " lda temp7\n");
+    fprintf(outputFile, " pha\n");
+    fprintf(outputFile, " txa\n");
+    fprintf(outputFile, " pha\n");
 // select bank to switch to
-    printf(" ldx #1\n");
-    printf(" jmp BS_jsr\n");
-    printf("ret_point%d\n", numjsrs);
+    fprintf(outputFile, " ldx #1\n");
+    fprintf(outputFile, " jmp BS_jsr\n");
+    fprintf(outputFile, "ret_point%d\n", numjsrs);
 
 }
 
@@ -642,87 +644,87 @@ void playfield(char **statement) {
 
     if (ROMpf)            // if playfield is in ROM:
     {
-        printf("	LDA #<PF1_data%d\n", playfield_number);
-        printf("	STA PF1pointer\n");
-        printf("	LDA #>PF1_data%d\n", playfield_number);
-        printf("	STA PF1pointer+1\n");
+        fprintf(outputFile, "	LDA #<PF1_data%d\n", playfield_number);
+        fprintf(outputFile, "	STA PF1pointer\n");
+        fprintf(outputFile, "	LDA #>PF1_data%d\n", playfield_number);
+        fprintf(outputFile, "	STA PF1pointer+1\n");
 
-        printf("	LDA #<PF2_data%d\n", playfield_number);
-        printf("	STA PF2pointer\n");
-        printf("	LDA #>PF2_data%d\n", playfield_number);
-        printf("	STA PF2pointer+1\n");
+        fprintf(outputFile, "	LDA #<PF2_data%d\n", playfield_number);
+        fprintf(outputFile, "	STA PF2pointer\n");
+        fprintf(outputFile, "	LDA #>PF2_data%d\n", playfield_number);
+        fprintf(outputFile, "	STA PF2pointer+1\n");
         playfield_number++;
     } else if (bs != 28)        // RAM pf, as in std_kernel, not DPC+
     {
-        printf("  ifconst pfres\n");
-//      printf("    ldx #4*pfres-1\n");
-        printf("	  ldx #(%d>pfres)*(pfres*pfwidth-1)+(%d<=pfres)*%d\n", l, l, l * 4 - 1);
-        printf("  else\n");
-//      printf("    ldx #47\n");
-//      printf("          ldx #%d\n",l*4-1>47?47:l*4-1);
-        printf("	  ldx #((%d*pfwidth-1)*((%d*pfwidth-1)<47))+(47*((%d*pfwidth-1)>=47))\n", l, l, l);
-        printf("  endif\n");
-        printf("	jmp pflabel%d\n", playfield_number);
+        fprintf(outputFile, "  ifconst pfres\n");
+//      fprintf(outputFile, "    ldx #4*pfres-1\n");
+        fprintf(outputFile, "	  ldx #(%d>pfres)*(pfres*pfwidth-1)+(%d<=pfres)*%d\n", l, l, l * 4 - 1);
+        fprintf(outputFile, "  else\n");
+//      fprintf(outputFile, "    ldx #47\n");
+//      fprintf(outputFile, "          ldx #%d\n",l*4-1>47?47:l*4-1);
+        fprintf(outputFile, "	  ldx #((%d*pfwidth-1)*((%d*pfwidth-1)<47))+(47*((%d*pfwidth-1)>=47))\n", l, l, l);
+        fprintf(outputFile, "  endif\n");
+        fprintf(outputFile, "	jmp pflabel%d\n", playfield_number);
 
         // no need to align to page boundaries
 
-        printf("PF_data%d\n", playfield_number);
+        fprintf(outputFile, "PF_data%d\n", playfield_number);
         for (j = 0; j < l; ++j)    // stored right side up
         {
-            printf("	.byte %%");
+            fprintf(outputFile, "	.byte %%");
             // the below should be changed to check for zero instead of defaulting to it
             for (k = 0; k < 8; ++k)
                 if (pframdata[j][k] == one)
-                    printf("1");
+                    fprintf(outputFile, "1");
                 else
-                    printf("0");
-            printf(", %%");
+                    fprintf(outputFile, "0");
+            fprintf(outputFile, ", %%");
             for (k = 15; k >= 8; k--)
                 if (pframdata[j][k] == one)
-                    printf("1");
+                    fprintf(outputFile, "1");
                 else
-                    printf("0");
-            printf("\n	if (pfwidth>2)\n	.byte %%");
+                    fprintf(outputFile, "0");
+            fprintf(outputFile, "\n	if (pfwidth>2)\n	.byte %%");
             for (k = 16; k < 24; ++k)
                 if (pframdata[j][k] == one)
-                    printf("1");
+                    fprintf(outputFile, "1");
                 else
-                    printf("0");
-            printf(", %%");
+                    fprintf(outputFile, "0");
+            fprintf(outputFile, ", %%");
             for (k = 31; k >= 24; k--)
                 if (pframdata[j][k] == one)
-                    printf("1");
+                    fprintf(outputFile, "1");
                 else
-                    printf("0");
-            printf("\n endif\n");
+                    fprintf(outputFile, "0");
+            fprintf(outputFile, "\n endif\n");
         }
 
-        printf("pflabel%d\n", playfield_number);
-        printf("	lda PF_data%d,x\n", playfield_number);
+        fprintf(outputFile, "pflabel%d\n", playfield_number);
+        fprintf(outputFile, "	lda PF_data%d,x\n", playfield_number);
         if (superchip) {
-//        printf("  ifconst pfres\n");
-            //      printf("      sta playfield+48-pfres*pfwidth-128,x\n");
-            //    printf("  else\n");
-            printf("	sta playfield-128,x\n");
-            //  printf("  endif\n");
+//        fprintf(outputFile, "  ifconst pfres\n");
+            //      fprintf(outputFile, "      sta playfield+48-pfres*pfwidth-128,x\n");
+            //    fprintf(outputFile, "  else\n");
+            fprintf(outputFile, "	sta playfield-128,x\n");
+            //  fprintf(outputFile, "  endif\n");
         } else {
-//        printf("  ifconst pfres\n");
-            //      printf("      sta playfield+48-pfres*pfwidth,x\n");
-            //    printf("  else\n");
-            printf("	sta playfield,x\n");
-            //  printf("  endif\n");
+//        fprintf(outputFile, "  ifconst pfres\n");
+            //      fprintf(outputFile, "      sta playfield+48-pfres*pfwidth,x\n");
+            //    fprintf(outputFile, "  else\n");
+            fprintf(outputFile, "	sta playfield,x\n");
+            //  fprintf(outputFile, "  endif\n");
         }
-        printf("	dex\n");
-        printf("	bpl pflabel%d\n", playfield_number);
+        fprintf(outputFile, "	dex\n");
+        fprintf(outputFile, "	bpl pflabel%d\n", playfield_number);
         playfield_number++;
 
     } else            // RAM pf in DPC+
     {
         // l is pf data height
         playfield_number++;
-        printf(" ldy #%d\n", l);
-        printf("	LDA #<PF_data%d\n", playfield_number);
-        printf("	LDX #((>PF_data%d) & $0f) | (((>PF_data%d) / 2) & $70)\n", playfield_number, playfield_number);
+        fprintf(outputFile, " ldy #%d\n", l);
+        fprintf(outputFile, "	LDA #<PF_data%d\n", playfield_number);
+        fprintf(outputFile, "	LDX #((>PF_data%d) & $0f) | (((>PF_data%d) / 2) & $70)\n", playfield_number, playfield_number);
         jsrbank1("pfsetup");
 
         // use sprite data recorder for pf data
@@ -783,33 +785,33 @@ void jsr(char *location) {
 // determines whether to use the standard jsr (for 2k/4k or bankswitched stuff in current bank)
 // or to switch banks before calling the routine
     if ((!bs) || (bank == last_bank)) {
-        printf(" jsr %s\n", location);
+        fprintf(outputFile, " jsr %s\n", location);
         return;
     }
 // we need to switch banks
-    printf(" sta temp7\n");
+    fprintf(outputFile, " sta temp7\n");
 // first create virtual return address
     if (bs == 64)
-        printf(" lda #(((>(ret_point%d-1)) & $0F) | $%1x0) \n", ++numjsrs, bank - 1);
+        fprintf(outputFile, " lda #(((>(ret_point%d-1)) & $0F) | $%1x0) \n", ++numjsrs, bank - 1);
     else
-        printf(" lda #>(ret_point%d-1)\n", ++numjsrs);
-    printf(" pha\n");
-    printf(" lda #<(ret_point%d-1)\n", numjsrs);
-    printf(" pha\n");
+        fprintf(outputFile, " lda #>(ret_point%d-1)\n", ++numjsrs);
+    fprintf(outputFile, " pha\n");
+    fprintf(outputFile, " lda #<(ret_point%d-1)\n", numjsrs);
+    fprintf(outputFile, " pha\n");
 // next we must push the place to jsr to
-    printf(" lda #>(%s-1)\n", location);
-    printf(" pha\n");
-    printf(" lda #<(%s-1)\n", location);
-    printf(" pha\n");
+    fprintf(outputFile, " lda #>(%s-1)\n", location);
+    fprintf(outputFile, " pha\n");
+    fprintf(outputFile, " lda #<(%s-1)\n", location);
+    fprintf(outputFile, " pha\n");
 // now store regs on stack
-    printf(" lda temp7\n");
-    printf(" pha\n");
-    printf(" txa\n");
-    printf(" pha\n");
+    fprintf(outputFile, " lda temp7\n");
+    fprintf(outputFile, " pha\n");
+    fprintf(outputFile, " txa\n");
+    fprintf(outputFile, " pha\n");
 // select bank to switch to
-    printf(" ldx #%d\n", last_bank);
-    printf(" jmp BS_jsr\n");
-    printf("ret_point%d\n", numjsrs);
+    fprintf(outputFile, " ldx #%d\n", last_bank);
+    fprintf(outputFile, " jmp BS_jsr\n");
+    fprintf(outputFile, "ret_point%d\n", numjsrs);
 
 }
 
@@ -824,78 +826,78 @@ int switchjoy(char *input_source) {
 //  invalidate_Areg()  // do we need this?
 
     if (!strncmp(input_source, "switchreset\0", 11)) {
-        printf(" lda #1\n");
-        printf(" bit SWCHB\n");
+        fprintf(outputFile, " lda #1\n");
+        fprintf(outputFile, " bit SWCHB\n");
         return 0;
     }
     if (!strncmp(input_source, "switchselect\0", 12)) {
-        printf(" lda #2\n");
-        printf(" bit SWCHB\n");
+        fprintf(outputFile, " lda #2\n");
+        fprintf(outputFile, " bit SWCHB\n");
         return 0;
     }
     if (!strncmp(input_source, "switchleftb\0", 11)) {
-//     printf(" lda #$40\n");
-        printf(" bit SWCHB\n");
+//     fprintf(outputFile, " lda #$40\n");
+        fprintf(outputFile, " bit SWCHB\n");
         return 1;
     }
     if (!strncmp(input_source, "switchrightb\0", 12)) {
-//     printf(" lda #$80\n");
-        printf(" bit SWCHB\n");
+//     fprintf(outputFile, " lda #$80\n");
+        fprintf(outputFile, " bit SWCHB\n");
         return 2;
     }
     if (!strncmp(input_source, "switchbw\0", 8)) {
-        printf(" lda #8\n");
-        printf(" bit SWCHB\n");
+        fprintf(outputFile, " lda #8\n");
+        fprintf(outputFile, " bit SWCHB\n");
         return 0;
     }
     if (!strncmp(input_source, "joy0up\0", 6)) {
-        printf(" lda #$10\n");
-        printf(" bit SWCHA\n");
+        fprintf(outputFile, " lda #$10\n");
+        fprintf(outputFile, " bit SWCHA\n");
         return 0;
     }
     if (!strncmp(input_source, "joy0down\0", 8)) {
-        printf(" lda #$20\n");
-        printf(" bit SWCHA\n");
+        fprintf(outputFile, " lda #$20\n");
+        fprintf(outputFile, " bit SWCHA\n");
         return 0;
     }
     if (!strncmp(input_source, "joy0left\0", 8)) {
-//     printf(" lda #$40\n");
-        printf(" bit SWCHA\n");
+//     fprintf(outputFile, " lda #$40\n");
+        fprintf(outputFile, " bit SWCHA\n");
         return 1;
     }
     if (!strncmp(input_source, "joy0right\0", 9)) {
-//     printf(" lda #$80\n");
-        printf(" bit SWCHA\n");
+//     fprintf(outputFile, " lda #$80\n");
+        fprintf(outputFile, " bit SWCHA\n");
         return 2;
     }
     if (!strncmp(input_source, "joy1up\0", 6)) {
-        printf(" lda #1\n");
-        printf(" bit SWCHA\n");
+        fprintf(outputFile, " lda #1\n");
+        fprintf(outputFile, " bit SWCHA\n");
         return 0;
     }
     if (!strncmp(input_source, "joy1down\0", 8)) {
-        printf(" lda #2\n");
-        printf(" bit SWCHA\n");
+        fprintf(outputFile, " lda #2\n");
+        fprintf(outputFile, " bit SWCHA\n");
         return 0;
     }
     if (!strncmp(input_source, "joy1left\0", 8)) {
-        printf(" lda #4\n");
-        printf(" bit SWCHA\n");
+        fprintf(outputFile, " lda #4\n");
+        fprintf(outputFile, " bit SWCHA\n");
         return 0;
     }
     if (!strncmp(input_source, "joy1right\0", 9)) {
-        printf(" lda #8\n");
-        printf(" bit SWCHA\n");
+        fprintf(outputFile, " lda #8\n");
+        fprintf(outputFile, " bit SWCHA\n");
         return 0;
     }
     if (!strncmp(input_source, "joy0fire\0", 8)) {
-//     printf(" lda #$80\n");
-        printf(" bit INPT4\n");
+//     fprintf(outputFile, " lda #$80\n");
+        fprintf(outputFile, " bit INPT4\n");
         return 2;
     }
     if (!strncmp(input_source, "joy1fire\0", 8)) {
-//     printf(" lda #$80\n");
-        printf(" bit INPT5\n");
+//     fprintf(outputFile, " lda #$80\n");
+        fprintf(outputFile, " bit INPT5\n");
         return 2;
     }
     prerror("invalid console switch/controller reference\n");
@@ -929,10 +931,10 @@ void newbank(int bankno) {
     if (bank > last_bank)
         prerror("bank not supported\n");
 
-    printf(" if ECHO%d\n", bank - 1);
-    printf(" echo \"    \",[(start_bank%d - *)]d , \"bytes of ROM space left in bank %d\")\n", bank - 1, bank - 1);
-    printf(" endif\n");
-    printf("ECHO%d = 1\n", bank - 1);
+    fprintf(outputFile, " if ECHO%d\n", bank - 1);
+    fprintf(outputFile, " echo \"    \",[(start_bank%d - *)]d , \"bytes of ROM space left in bank %d\")\n", bank - 1, bank - 1);
+    fprintf(outputFile, " endif\n");
+    fprintf(outputFile, "ECHO%d = 1\n", bank - 1);
 
 
     // now display banksw.asm file
@@ -959,72 +961,72 @@ void newbank(int bankno) {
         sprintf(redefined_variables[numredefvars++], "bscode_length = %d", len);
 
     if (bs == 64)
-        printf(" ORG $%1XFE0-bscode_length\n", bank - 1);
+        fprintf(outputFile, " ORG $%1XFE0-bscode_length\n", bank - 1);
     else
-        printf(" ORG $%dFF4-bscode_length\n", bank - 1);
+        fprintf(outputFile, " ORG $%dFF4-bscode_length\n", bank - 1);
 
 
     if (bs == 28)
-        printf(" RORG $%XF4-bscode_length\n", (2 * (bank - 1) - 1) * 16 + 15);
+        fprintf(outputFile, " RORG $%XF4-bscode_length\n", (2 * (bank - 1) - 1) * 16 + 15);
     else if (bs == 64)
-        printf(" RORG $%XE0-bscode_length\n", (31 - bs / 2 + 2 * (bank - 1)) * 16 + 15);
+        fprintf(outputFile, " RORG $%XE0-bscode_length\n", (31 - bs / 2 + 2 * (bank - 1)) * 16 + 15);
     else
-        printf(" RORG $%XF4-bscode_length\n", (15 - bs / 2 + 2 * (bank - 1)) * 16 + 15);
+        fprintf(outputFile, " RORG $%XF4-bscode_length\n", (15 - bs / 2 + 2 * (bank - 1)) * 16 + 15);
 
 
-    printf("start_bank%d", bank - 1);
+    fprintf(outputFile, "start_bank%d", bank - 1);
 
 
     while (fgets(line, 500, bs_support)) {
         if (line[0] == ' ')
-            printf("%s", line);
+            fprintf(outputFile, "%s", line);
     }
 
     fclose(bs_support);
 
-    printf(" ORG $%1XFFC\n", bank - 1);
+    fprintf(outputFile, " ORG $%1XFFC\n", bank - 1);
 
     if (bs == 28)
-        printf(" RORG $%XFC\n", (2 * (bank - 1) - 1) * 16 + 15);
+        fprintf(outputFile, " RORG $%XFC\n", (2 * (bank - 1) - 1) * 16 + 15);
     else if (bs == 64)
-        printf(" RORG $%XFC\n", (31 - bs / 2 + 2 * (bank - 1)) * 16 + 15);
+        fprintf(outputFile, " RORG $%XFC\n", (31 - bs / 2 + 2 * (bank - 1)) * 16 + 15);
     else
-        printf(" RORG $%XFC\n", (15 - bs / 2 + 2 * (bank - 1)) * 16 + 15);
+        fprintf(outputFile, " RORG $%XFC\n", (15 - bs / 2 + 2 * (bank - 1)) * 16 + 15);
 
-    printf(" .word (start_bank%d & $ffff)\n", bank - 1);
-    printf(" .word (start_bank%d & $ffff)\n", bank - 1);
+    fprintf(outputFile, " .word (start_bank%d & $ffff)\n", bank - 1);
+    fprintf(outputFile, " .word (start_bank%d & $ffff)\n", bank - 1);
 
     // now end
-    printf(" ORG $%1X000\n", bank);
+    fprintf(outputFile, " ORG $%1X000\n", bank);
     if (bs == 28) {
-        printf(" RORG $%X00\n", (2 * bank - 1) * 16);
+        fprintf(outputFile, " RORG $%X00\n", (2 * bank - 1) * 16);
         switch (bank) {
             case 2:        // probably a better way to do this!!!
-                printf("HMdiv\n");
-                printf("  .byte 0, 0, 0, 0, 0, 0, 0\n");
-                printf("  .byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2\n");
-                printf("  .byte 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3\n");
-                printf("  .byte 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4\n");
-                printf("  .byte 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5\n");
-                printf("  .byte 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6\n");
-                printf("  .byte 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7\n");
-                printf("  .byte 7, 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8\n");
-                printf("  .byte 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9\n");
-                printf("  .byte 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10\n");
-                printf("  .byte 10,10,10,10,10,10,0,0,0\n");
+                fprintf(outputFile, "HMdiv\n");
+                fprintf(outputFile, "  .byte 0, 0, 0, 0, 0, 0, 0\n");
+                fprintf(outputFile, "  .byte 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2\n");
+                fprintf(outputFile, "  .byte 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3\n");
+                fprintf(outputFile, "  .byte 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4\n");
+                fprintf(outputFile, "  .byte 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5\n");
+                fprintf(outputFile, "  .byte 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6\n");
+                fprintf(outputFile, "  .byte 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7\n");
+                fprintf(outputFile, "  .byte 7, 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8\n");
+                fprintf(outputFile, "  .byte 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9\n");
+                fprintf(outputFile, "  .byte 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10\n");
+                fprintf(outputFile, "  .byte 10,10,10,10,10,10,0,0,0\n");
                 break;
             default:
-                printf(" repeat 129\n .byte 0\n repend\n");
+                fprintf(outputFile, " repeat 129\n .byte 0\n repend\n");
         }
     } else if (bs == 64)
-        printf(" RORG $%X00\n", (31 - bs / 2 + 2 * bank) * 16);
+        fprintf(outputFile, " RORG $%X00\n", (31 - bs / 2 + 2 * bank) * 16);
     else
-        printf(" RORG $%X00\n", (15 - bs / 2 + 2 * bank) * 16);
+        fprintf(outputFile, " RORG $%X00\n", (15 - bs / 2 + 2 * bank) * 16);
     if (superchip)
-        printf(" repeat 256\n .byte $ff\n repend\n");
+        fprintf(outputFile, " repeat 256\n .byte $ff\n repend\n");
 
     if (bank == last_bank)
-        printf("; bB.asm file is split here\n");
+        fprintf(outputFile, "; bB.asm file is split here\n");
 
     // not working yet - need to :
     // do something I forgot
@@ -1066,15 +1068,15 @@ void printfrac(char *item) {                // prints the fractional part of a d
     for (i = 0; i < numfixpoint88; ++i) {
         strcpy(getvar, fixpoint88[1][i]);
         if (!strcmp(fixpoint88[0][i], item)) {
-            printf("%s\n", getvar);
+            fprintf(outputFile, "%s\n", getvar);
             return;
         }
     }
     // must be immediate value
     if (findpoint(item) < 50)
-        printf("#%d\n", (int) (immed_fixpoint(item) * 256.0));
+        fprintf(outputFile, "#%d\n", (int) (immed_fixpoint(item) * 256.0));
     else
-        printf("#0\n");
+        fprintf(outputFile, "#0\n");
 }
 
 int isfixpoint(char *item) {
@@ -1160,7 +1162,7 @@ void add_includes(char *myinclude) {
 }
 
 void add_inline(char *myinclude) {
-    printf(" include %s\n", myinclude);
+    fprintf(outputFile, " include %s\n", myinclude);
 }
 
 void init_includes(char *path) {
@@ -1180,44 +1182,44 @@ void barf_sprite_data() {
         newbank(i + 1);
 //  {
 //    bank=1;
-//    printf(" echo \"   \",[(start_bank1 - *)]d , \"bytes of ROM space left in bank 1\"\n");
+//    fprintf(outputFile, " echo \"   \",[(start_bank1 - *)]d , \"bytes of ROM space left in bank 1\"\n");
 //  }
 //  for (i=bank;i<last_bank;++i)
-//    printf("; bB.asm file is split here\n\n\n\n");
+//    fprintf(outputFile, "; bB.asm file is split here\n\n\n\n");
     for (i = 0; i < sprite_index; ++i) {
-        printf("%s", sprite_data[i]);
+        fprintf(outputFile, "%s", sprite_data[i]);
     }
 
     // now we must regurgitate the PF data
 
     for (i = 0; i < playfield_number; ++i) {
         if (ROMpf) {
-            printf(" if ((>(*+%d)) > (>*))\n ALIGN 256\n endif\n", playfield_index[i]);
-            printf("PF1_data%d\n", i);
+            fprintf(outputFile, " if ((>(*+%d)) > (>*))\n ALIGN 256\n endif\n", playfield_index[i]);
+            fprintf(outputFile, "PF1_data%d\n", i);
             for (j = playfield_index[i] - 1; j >= 0; j--) {
-                printf(" .byte %%");
+                fprintf(outputFile, " .byte %%");
 
                 for (k = 15; k > 7; k--) {
                     if (pfdata[i][j] & (1 << k))
-                        printf("1");
+                        fprintf(outputFile, "1");
                     else
-                        printf("0");
+                        fprintf(outputFile, "0");
                 }
-                printf("\n");
+                fprintf(outputFile, "\n");
             }
 
-            printf(" if ((>(*+%d)) > (>*))\n ALIGN 256\n endif\n", playfield_index[i]);
-            printf("PF2_data%d\n", i);
+            fprintf(outputFile, " if ((>(*+%d)) > (>*))\n ALIGN 256\n endif\n", playfield_index[i]);
+            fprintf(outputFile, "PF2_data%d\n", i);
             for (j = playfield_index[i] - 1; j >= 0; j--) {
-                printf(" .byte %%");
+                fprintf(outputFile, " .byte %%");
                 for (k = 0; k < 8; ++k)    // reversed bit order!
                 {
                     if (pfdata[i][j] & (1 << k))
-                        printf("1");
+                        fprintf(outputFile, "1");
                     else
-                        printf("0");
+                        fprintf(outputFile, "0");
                 }
-                printf("\n");
+                fprintf(outputFile, "\n");
             }
         } else            // RAM pf
         {
@@ -1295,16 +1297,16 @@ void create_includes(char *includesfile) {
 void printindex(char *mystatement, int myindex) {
     if (!myindex) {
         printimmed(mystatement);
-        printf("%s\n", mystatement);
+        fprintf(outputFile, "%s\n", mystatement);
     } else
-        printf("%s,x\n", mystatement);    // indexed with x!
+        fprintf(outputFile, "%s,x\n", mystatement);    // indexed with x!
 }
 
 void loadindex(char *myindex) {
     if (strncmp(myindex, "TSX\0", 3)) {
-        printf("	LDX ");    // get index
+        fprintf(outputFile, "	LDX ");    // get index
         printimmed(myindex);
-        printf("%s\n", myindex);
+        fprintf(outputFile, "%s\n", myindex);
     }
 }
 
@@ -1385,155 +1387,155 @@ void mul(char **statement, int bits) {
     int tempstorage = 0;
     // we will optimize specifically for 2,3,5,7,9
     if (bits == 16) {
-        printf("	ldx #0\n");
-        printf("	stx temp1\n");
+        fprintf(outputFile, "	ldx #0\n");
+        fprintf(outputFile, "	stx temp1\n");
     }
     while (multiplicand != 1) {
         if (!(multiplicand % 9)) {
             if (tempstorage) {
                 strcpy(statement[4], "temp2");
-                printf("	sta temp2\n");
+                fprintf(outputFile, "	sta temp2\n");
             }
             multiplicand /= 9;
-            printf("	asl\n");
+            fprintf(outputFile, "	asl\n");
             if (bits == 16)
-                printf("  rol temp1\n");
-            printf("	asl\n");
+                fprintf(outputFile, "  rol temp1\n");
+            fprintf(outputFile, "	asl\n");
             if (bits == 16)
-                printf("  rol temp1\n");
-            printf("	clc\n");
-            printf("	adc ");
+                fprintf(outputFile, "  rol temp1\n");
+            fprintf(outputFile, "	clc\n");
+            fprintf(outputFile, "	adc ");
             printimmed(statement[4]);
-            printf("%s\n", statement[4]);
+            fprintf(outputFile, "%s\n", statement[4]);
             if (bits == 16) {
-                printf("	tax\n");
-                printf("	lda temp1\n");
-                printf("	adc #0\n");
-                printf("	sta temp1\n");
-                printf("	txa\n");
+                fprintf(outputFile, "	tax\n");
+                fprintf(outputFile, "	lda temp1\n");
+                fprintf(outputFile, "	adc #0\n");
+                fprintf(outputFile, "	sta temp1\n");
+                fprintf(outputFile, "	txa\n");
             }
-            printf("	asl\n");
+            fprintf(outputFile, "	asl\n");
             if (bits == 16)
-                printf("  rol temp1\n");
-            printf("	clc\n");
-            printf("	adc ");
+                fprintf(outputFile, "  rol temp1\n");
+            fprintf(outputFile, "	clc\n");
+            fprintf(outputFile, "	adc ");
             printimmed(statement[4]);
-            printf("%s\n", statement[4]);
+            fprintf(outputFile, "%s\n", statement[4]);
             if (bits == 16) {
-                printf("	tax\n");
-                printf("	lda temp1\n");
-                printf("	adc #0\n");
-                printf("	sta temp1\n");
-                printf("	txa\n");
+                fprintf(outputFile, "	tax\n");
+                fprintf(outputFile, "	lda temp1\n");
+                fprintf(outputFile, "	adc #0\n");
+                fprintf(outputFile, "	sta temp1\n");
+                fprintf(outputFile, "	txa\n");
             }
             tempstorage = 1;
         } else if (!(multiplicand % 9)) {
             if (tempstorage) {
                 strcpy(statement[4], "temp2");
-                printf("	sta temp2\n");
+                fprintf(outputFile, "	sta temp2\n");
             }
             multiplicand /= 9;
-            printf("	asl\n");
+            fprintf(outputFile, "	asl\n");
             if (bits == 16)
-                printf("  rol temp1\n");
-            printf("	asl\n");
+                fprintf(outputFile, "  rol temp1\n");
+            fprintf(outputFile, "	asl\n");
             if (bits == 16)
-                printf("  rol temp1\n");
-            printf("	asl\n");
+                fprintf(outputFile, "  rol temp1\n");
+            fprintf(outputFile, "	asl\n");
             if (bits == 16)
-                printf("  rol temp1\n");
-            printf("	clc\n");
-            printf("	adc ");
+                fprintf(outputFile, "  rol temp1\n");
+            fprintf(outputFile, "	clc\n");
+            fprintf(outputFile, "	adc ");
             printimmed(statement[4]);
-            printf("%s\n", statement[4]);
+            fprintf(outputFile, "%s\n", statement[4]);
             if (bits == 16) {
-                printf("	tax\n");
-                printf("	lda temp1\n");
-                printf("	adc #0\n");
-                printf("	sta temp1\n");
-                printf("	txa\n");
+                fprintf(outputFile, "	tax\n");
+                fprintf(outputFile, "	lda temp1\n");
+                fprintf(outputFile, "	adc #0\n");
+                fprintf(outputFile, "	sta temp1\n");
+                fprintf(outputFile, "	txa\n");
             }
             tempstorage = 1;
         } else if (!(multiplicand % 7)) {
             if (tempstorage) {
                 strcpy(statement[4], "temp2");
-                printf("	sta temp2\n");
+                fprintf(outputFile, "	sta temp2\n");
             }
             multiplicand /= 7;
-            printf("	asl\n");
+            fprintf(outputFile, "	asl\n");
             if (bits == 16)
-                printf("  rol temp1\n");
-            printf("	asl\n");
+                fprintf(outputFile, "  rol temp1\n");
+            fprintf(outputFile, "	asl\n");
             if (bits == 16)
-                printf("  rol temp1\n");
-            printf("	asl\n");
+                fprintf(outputFile, "  rol temp1\n");
+            fprintf(outputFile, "	asl\n");
             if (bits == 16)
-                printf("  rol temp1\n");
-            printf("	sec\n");
-            printf("	sbc ");
+                fprintf(outputFile, "  rol temp1\n");
+            fprintf(outputFile, "	sec\n");
+            fprintf(outputFile, "	sbc ");
             printimmed(statement[4]);
-            printf("%s\n", statement[4]);
+            fprintf(outputFile, "%s\n", statement[4]);
             if (bits == 16) {
-                printf("	tax\n");
-                printf("	lda temp1\n");
-                printf("	sbc #0\n");
-                printf("	sta temp1\n");
-                printf("	txa\n");
+                fprintf(outputFile, "	tax\n");
+                fprintf(outputFile, "	lda temp1\n");
+                fprintf(outputFile, "	sbc #0\n");
+                fprintf(outputFile, "	sta temp1\n");
+                fprintf(outputFile, "	txa\n");
             }
             tempstorage = 1;
         } else if (!(multiplicand % 5)) {
             if (tempstorage) {
                 strcpy(statement[4], "temp2");
-                printf("	sta temp2\n");
+                fprintf(outputFile, "	sta temp2\n");
             }
             multiplicand /= 5;
-            printf("	asl\n");
+            fprintf(outputFile, "	asl\n");
             if (bits == 16)
-                printf("  rol temp1\n");
-            printf("	asl\n");
+                fprintf(outputFile, "  rol temp1\n");
+            fprintf(outputFile, "	asl\n");
             if (bits == 16)
-                printf("  rol temp1\n");
-            printf("	clc\n");
-            printf("	adc ");
+                fprintf(outputFile, "  rol temp1\n");
+            fprintf(outputFile, "	clc\n");
+            fprintf(outputFile, "	adc ");
             printimmed(statement[4]);
-            printf("%s\n", statement[4]);
+            fprintf(outputFile, "%s\n", statement[4]);
             if (bits == 16) {
-                printf("	tax\n");
-                printf("	lda temp1\n");
-                printf("	adc #0\n");
-                printf("	sta temp1\n");
-                printf("	txa\n");
+                fprintf(outputFile, "	tax\n");
+                fprintf(outputFile, "	lda temp1\n");
+                fprintf(outputFile, "	adc #0\n");
+                fprintf(outputFile, "	sta temp1\n");
+                fprintf(outputFile, "	txa\n");
             }
             tempstorage = 1;
         } else if (!(multiplicand % 3)) {
             if (tempstorage) {
                 strcpy(statement[4], "temp2");
-                printf("	sta temp2\n");
+                fprintf(outputFile, "	sta temp2\n");
             }
             multiplicand /= 3;
-            printf("	asl\n");
+            fprintf(outputFile, "	asl\n");
             if (bits == 16)
-                printf("  rol temp1\n");
-            printf("	clc\n");
-            printf("	adc ");
+                fprintf(outputFile, "  rol temp1\n");
+            fprintf(outputFile, "	clc\n");
+            fprintf(outputFile, "	adc ");
             printimmed(statement[4]);
-            printf("%s\n", statement[4]);
+            fprintf(outputFile, "%s\n", statement[4]);
             if (bits == 16) {
-                printf("	tax\n");
-                printf("	lda temp1\n");
-                printf("	adc #0\n");
-                printf("	sta temp1\n");
-                printf("	txa\n");
+                fprintf(outputFile, "	tax\n");
+                fprintf(outputFile, "	lda temp1\n");
+                fprintf(outputFile, "	adc #0\n");
+                fprintf(outputFile, "	sta temp1\n");
+                fprintf(outputFile, "	txa\n");
             }
             tempstorage = 1;
         } else if (!(multiplicand % 2)) {
             multiplicand /= 2;
-            printf("	asl\n");
+            fprintf(outputFile, "	asl\n");
             if (bits == 16)
-                printf("  rol temp1\n");
+                fprintf(outputFile, "  rol temp1\n");
         } else {
-            printf("	LDY #%d\n", multiplicand);
-            printf("	jsr mul%d\n", bits);
+            fprintf(outputFile, "	LDY #%d\n", multiplicand);
+            fprintf(outputFile, "	jsr mul%d\n", bits);
             fprintf(stderr, "Warning - there seems to be a problem.  Your code may not run properly.\n");
             fprintf(stderr, "If you are seeing this message, please report it - it could be a bug.\n");
 // WARNING: not fixed up for bankswitching
@@ -1545,19 +1547,19 @@ void mul(char **statement, int bits) {
 void divd(char **statement, int bits) {
     int divisor = atoi(statement[6]);
     if (bits == 16) {
-        printf("	ldx #0\n");
-        printf("	stx temp1\n");
+        fprintf(outputFile, "	ldx #0\n");
+        fprintf(outputFile, "	stx temp1\n");
     }
     while (divisor != 1) {
         if (!(divisor % 2))    // div by power of two is the only easy thing
         {
             divisor /= 2;
-            printf("	lsr\n");
+            fprintf(outputFile, "	lsr\n");
             if (bits == 16)
-                printf("  rol temp1\n");    // I am not sure if this is actually correct
+                fprintf(outputFile, "  rol temp1\n");    // I am not sure if this is actually correct
         } else {
-            printf("	LDY #%d\n", divisor);
-            printf("	jsr div%d\n", bits);
+            fprintf(outputFile, "	LDY #%d\n", divisor);
+            fprintf(outputFile, "	jsr div%d\n", bits);
             fprintf(stderr, "Warning - there seems to be a problem.  Your code may not run properly.\n");
             fprintf(stderr, "If you are seeing this message, please report it - it could be a bug.\n");
 // WARNING: Not fixed up for bankswitching
@@ -1578,9 +1580,9 @@ void function(char **statement) {
     // the help.html file.
     // determine number of args, then run until we get an end.
     doingfunction = 1;
-    printf("%s\n", statement[2]);
-    printf("	STA temp1\n");
-    printf("	STY temp2\n");
+    fprintf(outputFile, "%s\n", statement[2]);
+    fprintf(outputFile, "	STA temp1\n");
+    fprintf(outputFile, "	STY temp2\n");
 }
 
 void callfunction(char **statement) {
@@ -1607,18 +1609,18 @@ void callfunction(char **statement) {
             loadindex(&getindex0[0]);
 
         if (arguments == 1)
-            printf("	LDY ");
+            fprintf(outputFile, "	LDY ");
         else
-            printf("	LDA ");
+            fprintf(outputFile, "	LDA ");
         printindex(statement[argnum[arguments]], index);
 
         if (arguments > 1)
-            printf("	STA temp%d\n", arguments + 1);
+            fprintf(outputFile, "	STA temp%d\n", arguments + 1);
 //    arguments--;
     }
 //  jsr(statement[4]);
 // need to fix above for proper function support
-    printf(" jsr %s\n", statement[4]);
+    fprintf(outputFile, " jsr %s\n", statement[4]);
 
     strcpy(Areg, "invalid");
 
@@ -1774,11 +1776,11 @@ int findlabel(char **statement, int i) {
 
 void sread(char **statement) {
     // read sequential data
-    printf("	ldx #%s\n", statement[6]);
-    printf("	lda (0,x)\n");
-    printf("	inc 0,x\n");
-    printf("	bne *+4\n");
-    printf("	inc 1,x\n");
+    fprintf(outputFile, "	ldx #%s\n", statement[6]);
+    fprintf(outputFile, "	lda (0,x)\n");
+    fprintf(outputFile, "	inc 0,x\n");
+    fprintf(outputFile, "	bne *+4\n");
+    fprintf(outputFile, "	inc 1,x\n");
     strcpy(Areg, "invalid");
 }
 
@@ -1788,15 +1790,15 @@ void sdata(char **statement) {
     int i;
     removeCR(statement[4]);
     sprintf(redefined_variables[numredefvars++], "%s = %s", statement[2], statement[4]);
-    printf("	lda #<%s_begin\n", statement[2]);
-    printf("	sta %s\n", statement[4]);
-    printf("	lda #>%s_begin\n", statement[2]);
-    printf("	sta %s+1\n", statement[4]);
+    fprintf(outputFile, "	lda #<%s_begin\n", statement[2]);
+    fprintf(outputFile, "	sta %s\n", statement[4]);
+    fprintf(outputFile, "	lda #>%s_begin\n", statement[2]);
+    fprintf(outputFile, "	sta %s+1\n", statement[4]);
 
-    printf("	JMP .skip%s\n", statement[0]);
+    fprintf(outputFile, "	JMP .skip%s\n", statement[0]);
     // not affected by noinlinedata
 
-    printf("%s_begin\n", statement[2]);
+    fprintf(outputFile, "%s_begin\n", statement[2]);
     while (1) {
         if ((read_source_line(data)
              || ((data[0] < (unsigned char) 0x3A) && (data[0] > (unsigned char) 0x2F))) && (data[0] != 'e')) {
@@ -1814,9 +1816,9 @@ void sdata(char **statement) {
                 i = 200;
         }
         if (i < 200)
-            printf("	.byte %s\n", data);
+            fprintf(outputFile, "	.byte %s\n", data);
     }
-    printf(".skip%s\n", statement[0]);
+    fprintf(outputFile, ".skip%s\n", statement[0]);
 
 }
 
@@ -1835,10 +1837,10 @@ void data(char **statement) {
     removeCR(statement[2]);
 
     if (!(optimization & 4))
-        printf("	JMP .skip%s\n", statement[0]);
+        fprintf(outputFile, "	JMP .skip%s\n", statement[0]);
     // if optimization level >=4 then data cannot be placed inline with code!
 
-    printf("%s\n", statement[2]);
+    fprintf(outputFile, "%s\n", statement[2]);
     while (1) {
         if ((read_source_line(data)
              || ((data[0] < (unsigned char) 0x3A) && (data[0] > (unsigned char) 0x2F))) && (data[0] != 'e')) {
@@ -1856,9 +1858,9 @@ void data(char **statement) {
                 i = 200;
         }
         if (i < 200)
-            printf("	.byte %s\n", data);
+            fprintf(outputFile, "	.byte %s\n", data);
     }
-    printf(".skip%s\n", statement[0]);
+    fprintf(outputFile, ".skip%s\n", statement[0]);
     strcpy(data_length[0], " ");
     strcpy(data_length[1], "const");
     sprintf(data_length[2], "%s_length", statement[2]);
@@ -1889,52 +1891,52 @@ void ongoto(char **statement) {
     int k, i = 4;
 
     if (!strncmp(statement[3], "gosub\0", 5)) {
-        printf("	lda #>(ongosub%d-1)\n", ongosub);
-        printf("	PHA\n");
-        printf("	lda #<(ongosub%d-1)\n", ongosub);
-        printf("	PHA\n");
+        fprintf(outputFile, "	lda #>(ongosub%d-1)\n", ongosub);
+        fprintf(outputFile, "	PHA\n");
+        fprintf(outputFile, "	lda #<(ongosub%d-1)\n", ongosub);
+        fprintf(outputFile, "	PHA\n");
     }
     if (strcmp(statement[2], Areg))
-        printf("	LDX %s\n", statement[2]);
-    //printf("    ASL\n");
-    //printf("    TAX\n");
-    printf("	LDA .%sjumptablehi,x\n", statement[0]);
-    printf("	PHA\n");
-    //printf("    INX\n");
-    printf("	LDA .%sjumptablelo,x\n", statement[0]);
-    printf("	PHA\n");
-    printf("	RTS\n");
-    printf(".%sjumptablehi\n", statement[0]);
+        fprintf(outputFile, "	LDX %s\n", statement[2]);
+    //fprintf(outputFile, "    ASL\n");
+    //fprintf(outputFile, "    TAX\n");
+    fprintf(outputFile, "	LDA .%sjumptablehi,x\n", statement[0]);
+    fprintf(outputFile, "	PHA\n");
+    //fprintf(outputFile, "    INX\n");
+    fprintf(outputFile, "	LDA .%sjumptablelo,x\n", statement[0]);
+    fprintf(outputFile, "	PHA\n");
+    fprintf(outputFile, "	RTS\n");
+    fprintf(outputFile, ".%sjumptablehi\n", statement[0]);
     while ((statement[i][0] != ':') && (statement[i][0] != '\0')) {
         for (k = 0; k < 200; ++k)
             if ((statement[i][k] == (unsigned char) 0x0A) || (statement[i][k] == (unsigned char) 0x0D))
                 statement[i][k] = '\0';
-        printf("	.byte >(.%s-1)\n", statement[i++]);
+        fprintf(outputFile, "	.byte >(.%s-1)\n", statement[i++]);
     }
-    printf(".%sjumptablelo\n", statement[0]);
+    fprintf(outputFile, ".%sjumptablelo\n", statement[0]);
     i = 4;
     while ((statement[i][0] != ':') && (statement[i][0] != '\0')) {
         for (k = 0; k < 200; ++k)
             if ((statement[i][k] == (unsigned char) 0x0A) || (statement[i][k] == (unsigned char) 0x0D))
                 statement[i][k] = '\0';
-        printf("	.byte <(.%s-1)\n", statement[i++]);
+        fprintf(outputFile, "	.byte <(.%s-1)\n", statement[i++]);
     }
     if (!strncmp(statement[3], "gosub\0", 5))
-        printf("ongosub%d\n", ongosub++);
+        fprintf(outputFile, "ongosub%d\n", ongosub++);
 }
 
 void dofor(char **statement) {
     if (strcmp(statement[4], Areg)) {
-        printf("	LDA ");
+        fprintf(outputFile, "	LDA ");
         printimmed(statement[4]);
-        printf("%s\n", statement[4]);
+        fprintf(outputFile, "%s\n", statement[4]);
     }
 
-    printf("	STA %s\n", statement[2]);
+    fprintf(outputFile, "	STA %s\n", statement[2]);
 
     forlabel[numfors][0] = '\0';
     sprintf(forlabel[numfors], "%sfor%s", statement[0], statement[2]);
-    printf(".%s\n", forlabel[numfors]);
+    fprintf(outputFile, ".%s\n", forlabel[numfors]);
 
     forend[numfors][0] = '\0';
     strcpy(forend[numfors], statement[6]);
@@ -1967,26 +1969,26 @@ void next(char **statement) {
     numfors--;
     if (!strncmp(forstep[numfors], "1\0", 2))    // step 1
     {
-        printf("	LDA %s\n", forvar[numfors]);
-        printf("	CMP ");
+        fprintf(outputFile, "	LDA %s\n", forvar[numfors]);
+        fprintf(outputFile, "	CMP ");
         printimmed(forend[numfors]);
-        printf("%s\n", forend[numfors]);
-        printf("	INC %s\n", forvar[numfors]);
+        fprintf(outputFile, "%s\n", forend[numfors]);
+        fprintf(outputFile, "	INC %s\n", forvar[numfors]);
         bcc(forlabel[numfors]);
     } else if ((!strncmp(forstep[numfors], "-1\0", 3)) ||
                (!strncmp(forstep[numfors], "255\0", 4))) {                // step -1
-        printf("	DEC %s\n", forvar[numfors]);
+        fprintf(outputFile, "	DEC %s\n", forvar[numfors]);
         if (strncmp(forend[numfors], "1\0", 2)) {
-            printf("	LDA %s\n", forvar[numfors]);
-            printf("	CMP ");
+            fprintf(outputFile, "	LDA %s\n", forvar[numfors]);
+            fprintf(outputFile, "	CMP ");
             if (!strncmp(forend[numfors], "0\0", 2)) {
                 // the special case of 0 as end, since we can't check to see if it was smaller than 0
-                printf("#255\n");
+                fprintf(outputFile, "#255\n");
                 bne(forlabel[numfors]);
             } else // general case
             {
                 printimmed(forend[numfors]);
-                printf("%s\n", forend[numfors]);
+                fprintf(outputFile, "%s\n", forend[numfors]);
                 bcs(forlabel[numfors]);
             }
         } else
@@ -2000,11 +2002,11 @@ void next(char **statement) {
         // if the step and end are known.  If the step and end are not known (that is,
         // either is a variable) then much more complex code must be generated.
 
-        printf("	LDA %s\n", forvar[numfors]);
-        printf("	CLC\n");
-        printf("	ADC ");
+        fprintf(outputFile, "	LDA %s\n", forvar[numfors]);
+        fprintf(outputFile, "	CLC\n");
+        fprintf(outputFile, "	ADC ");
         immed = printimmed(forstep[numfors]);
-        printf("%s\n", forstep[numfors]);
+        fprintf(outputFile, "%s\n", forstep[numfors]);
 
         if (immed && isimmed(forend[numfors]))    // the step and end are immediate
         {
@@ -2026,25 +2028,25 @@ void next(char **statement) {
             }
 
         }
-        printf("	STA %s\n", forvar[numfors]);
+        fprintf(outputFile, "	STA %s\n", forvar[numfors]);
 
-        printf("	CMP ");
+        fprintf(outputFile, "	CMP ");
         immedend = printimmed(forend[numfors]);
         // add 1 to immediate compare for increasing loops
         if (immedend && !(atoi(forstep[numfors]) & 128))
             strcat(forend[numfors], "+1");
-        printf("%s\n", forend[numfors]);
+        fprintf(outputFile, "%s\n", forend[numfors]);
 // if step number is 1 to 127 then add 1 and use bcc, otherwise bcs
 // if step is a variable, we'll need to check for every loop iteration
 //
 // Warning! no failsafe checks with variables as step or end - it's the
 // programmer's job to make sure the end value doesn't overflow
         if (!immed) {
-            printf("	LDX %s\n", forstep[numfors]);
-            printf("	BMI .%sbcs\n", statement[0]);
+            fprintf(outputFile, "	LDX %s\n", forstep[numfors]);
+            fprintf(outputFile, "	BMI .%sbcs\n", statement[0]);
             bcc(forlabel[numfors]);
-            printf("	CLC\n");
-            printf(".%sbcs\n", statement[0]);
+            fprintf(outputFile, "	CLC\n");
+            fprintf(outputFile, ".%sbcs\n", statement[0]);
             bcs(forlabel[numfors]);
         } else if (atoi(forstep[numfors]) & 128)
             bcs(forlabel[numfors]);
@@ -2055,7 +2057,7 @@ void next(char **statement) {
         }
     }
     if (failsafe)
-        printf(".%s\n", failsafelabel);
+        fprintf(outputFile, ".%s\n", failsafelabel);
 }
 
 void dim(char **statement) {
@@ -2137,21 +2139,21 @@ void doreturn(char **statement) {
             loadindex(&getindex0[0]);
 
         if (bs == 64)
-            printf("	LDA ");
+            fprintf(outputFile, "	LDA ");
         else if (!bankedreturn)
-            printf("	LDY ");
+            fprintf(outputFile, "	LDY ");
         else
-            printf("	LDA ");
+            fprintf(outputFile, "	LDA ");
         printindex(statement[2], index & 1);
 
     }
 
     if (bankedreturn == 1) {
-        printf("	RTS\n");
+        fprintf(outputFile, "	RTS\n");
         return;
     }
     if (bankedreturn == 2) {
-        printf("	JMP BS_return\n");
+        fprintf(outputFile, "	JMP BS_return\n");
         return;
     }
 
@@ -2160,27 +2162,27 @@ void doreturn(char **statement) {
         if (bs == 64) {
             // for 64kb carts, the onus is on the user to use "return otherbank" from bankswitch gosubs.
             // if we're here, we assume that it was from a non-bankswitched gosub.
-            printf("	RTS\n");
+            fprintf(outputFile, "	RTS\n");
             return;
         } else {
-            printf("	tsx\n");
-            printf("	lda 2,x ; check return address\n");
-            printf("	eor #(>*) ; vs. current PCH\n");
-            printf("	and #$E0 ;  mask off all but top 3 bits\n");
+            fprintf(outputFile, "	tsx\n");
+            fprintf(outputFile, "	lda 2,x ; check return address\n");
+            fprintf(outputFile, "	eor #(>*) ; vs. current PCH\n");
+            fprintf(outputFile, "	and #$E0 ;  mask off all but top 3 bits\n");
         }
 
         // if zero, then banks are the same
         if (statement[2][0] && (statement[2][0] != ' ')) {
-            printf("	beq *+6 ; if equal, do normal return\n");
-            printf("	tya\n");
+            fprintf(outputFile, "	beq *+6 ; if equal, do normal return\n");
+            fprintf(outputFile, "	tya\n");
         } else
-            printf("	beq *+5 ; if equal, do normal return\n");
-        printf("	JMP BS_return\n");
+            fprintf(outputFile, "	beq *+5 ; if equal, do normal return\n");
+        fprintf(outputFile, "	JMP BS_return\n");
     }
 
     if (statement[2][0] && (statement[2][0] != ' '))
-        printf("	tya\n");
-    printf("	RTS\n");
+        fprintf(outputFile, "	tya\n");
+    fprintf(outputFile, "	RTS\n");
 }
 
 void pfread(char **statement) {
@@ -2194,23 +2196,23 @@ void pfread(char **statement) {
     index |= getindex(statement[4], &getindex1[0]) << 1;
 
     if (bs == 28) {
-        printf("	lda #<C_function\n");
-        printf("	sta DF0LOW\n");
-        printf("	lda #(>C_function) & $0F\n");
-        printf("	sta DF0HI\n");
-        printf("    lda #24\n");
-        printf("    sta DF0WRITE\n");
+        fprintf(outputFile, "	lda #<C_function\n");
+        fprintf(outputFile, "	sta DF0LOW\n");
+        fprintf(outputFile, "	lda #(>C_function) & $0F\n");
+        fprintf(outputFile, "	sta DF0HI\n");
+        fprintf(outputFile, "    lda #24\n");
+        fprintf(outputFile, "    sta DF0WRITE\n");
 
         if (index & 1)
             loadindex(&getindex0[0]);
 
-        printf("	LDA ");
+        fprintf(outputFile, "	LDA ");
         printindex(statement[4], index & 1);
-        printf("	STA DF0WRITE\n");
+        fprintf(outputFile, "	STA DF0WRITE\n");
         if (index & 2)
             loadindex(&getindex1[0]);
 
-        printf("	LDY ");
+        fprintf(outputFile, "	LDY ");
         printindex(statement[6], index & 2);
         jsr("pfread");
 
@@ -2218,17 +2220,17 @@ void pfread(char **statement) {
         if (index & 1)
             loadindex(&getindex0[0]);
 
-        printf("	LDA ");
+        fprintf(outputFile, "	LDA ");
         printindex(statement[4], index & 1);
         if (index & 2)
             loadindex(&getindex1[0]);
 
-        printf("	LDY ");
+        fprintf(outputFile, "	LDY ");
         printindex(statement[6], index & 2);
 
-        printf("	STY DF0WRITE\n");
-        printf("	lda #255\n	sta CALLFUNCTION\n");
-        printf("    LDA DF0DATA\n");
+        fprintf(outputFile, "	STY DF0WRITE\n");
+        fprintf(outputFile, "	lda #255\n	sta CALLFUNCTION\n");
+        fprintf(outputFile, "    LDA DF0DATA\n");
     }
 }
 
@@ -2254,38 +2256,38 @@ void pfpixel(char **statement) {
 
     if (bs == 28)        // DPC+
     {
-        printf("	lda #<C_function\n");
-        printf("	sta DF0LOW\n");
-        printf("	lda #(>C_function) & $0F\n");
-        printf("	sta DF0HI\n");
-        printf("	LDX #");
-        printf("%d\n	STX DF0WRITE\n	STX DF0WRITE\n", on_off_flip | 12);
+        fprintf(outputFile, "	lda #<C_function\n");
+        fprintf(outputFile, "	sta DF0LOW\n");
+        fprintf(outputFile, "	lda #(>C_function) & $0F\n");
+        fprintf(outputFile, "	sta DF0HI\n");
+        fprintf(outputFile, "	LDX #");
+        fprintf(outputFile, "%d\n	STX DF0WRITE\n	STX DF0WRITE\n", on_off_flip | 12);
 
         if (index & 2)
             loadindex(&getindex1[0]);
-        printf("	LDY ");
+        fprintf(outputFile, "	LDY ");
         printindex(statement[3], index & 2);
 
-        printf("	STY DF0WRITE\n");
+        fprintf(outputFile, "	STY DF0WRITE\n");
         if (index & 1)
             loadindex(&getindex0[0]);
-        printf("	LDA ");
+        fprintf(outputFile, "	LDA ");
         printindex(statement[2], index & 1);
-        printf("	STA DF0WRITE\n");
-        printf("	lda #255\n	sta CALLFUNCTION\n");
+        fprintf(outputFile, "	STA DF0WRITE\n");
+        fprintf(outputFile, "	lda #255\n	sta CALLFUNCTION\n");
 
     } else {                // Standard and MultiSprite kernels
 
-        printf("	LDX #");
-        printf("%d\n", on_off_flip);
+        fprintf(outputFile, "	LDX #");
+        fprintf(outputFile, "%d\n", on_off_flip);
 
         if (index & 2)
             loadindex(&getindex1[0]);
-        printf("	LDY ");
+        fprintf(outputFile, "	LDY ");
         printindex(statement[3], index & 2);
         if (index & 1)
             loadindex(&getindex0[0]);
-        printf("	LDA ");
+        fprintf(outputFile, "	LDA ");
         printindex(statement[2], index & 1);
         jsr("pfpixel");
     }
@@ -2306,51 +2308,51 @@ void pfhline(char **statement) {
 
     if (bs == 28)        // DPC+
     {
-        printf("	lda #<C_function\n");
-        printf("	sta DF0LOW\n");
-        printf("	lda #(>C_function) & $0F\n");
-        printf("	sta DF0HI\n");
+        fprintf(outputFile, "	lda #<C_function\n");
+        fprintf(outputFile, "	sta DF0LOW\n");
+        fprintf(outputFile, "	lda #(>C_function) & $0F\n");
+        fprintf(outputFile, "	sta DF0HI\n");
     }
 
     index |= getindex(statement[2], &getindex0[0]);
     index |= getindex(statement[3], &getindex1[0]) << 1;
     index |= getindex(statement[4], &getindex2[0]) << 2;
 
-    printf("	LDX #");
+    fprintf(outputFile, "	LDX #");
     if (!strncmp(statement[5], "flip", 2))
         on_off_flip = 2;
     else if (!strncmp(statement[5], "off", 2))
         on_off_flip = 1;
     if (bs == 28)
-        printf("%d\n	STX DF0WRITE\n", on_off_flip | 8);
+        fprintf(outputFile, "%d\n	STX DF0WRITE\n", on_off_flip | 8);
     else
-        printf("%d\n", on_off_flip);
+        fprintf(outputFile, "%d\n", on_off_flip);
 
     if (index & 4)
         loadindex(&getindex2[0]);
-    printf("	LDA ");
+    fprintf(outputFile, "	LDA ");
     printindex(statement[4], index & 4);
     if (bs == 28)
-        printf("	STA DF0WRITE\n");
+        fprintf(outputFile, "	STA DF0WRITE\n");
     else
-        printf("	STA temp3\n");
+        fprintf(outputFile, "	STA temp3\n");
 
     if (index & 2)
         loadindex(&getindex1[0]);
-    printf("	LDY ");
+    fprintf(outputFile, "	LDY ");
     printindex(statement[3], index & 2);
     if (bs == 28)
-        printf("	STY DF0WRITE\n");
+        fprintf(outputFile, "	STY DF0WRITE\n");
 
     if (index & 1)
         loadindex(&getindex0[0]);
-    printf("	LDA ");
+    fprintf(outputFile, "	LDA ");
     printindex(statement[2], index & 1);
 
 
     if (bs == 28) {
-        printf("	STA DF0WRITE\n");
-        printf("	lda #255\n	sta CALLFUNCTION\n");
+        fprintf(outputFile, "	STA DF0WRITE\n");
+        fprintf(outputFile, "	lda #255\n	sta CALLFUNCTION\n");
     } else {
         jsr("pfhline");
     }
@@ -2371,50 +2373,50 @@ void pfvline(char **statement) {
 
     if (bs == 28)        // DPC+
     {
-        printf("	lda #<C_function\n");
-        printf("	sta DF0LOW\n");
-        printf("	lda #(>C_function) & $0F\n");
-        printf("	sta DF0HI\n");
+        fprintf(outputFile, "	lda #<C_function\n");
+        fprintf(outputFile, "	sta DF0LOW\n");
+        fprintf(outputFile, "	lda #(>C_function) & $0F\n");
+        fprintf(outputFile, "	sta DF0HI\n");
     }
 
     index |= getindex(statement[2], &getindex0[0]);
     index |= getindex(statement[3], &getindex1[0]) << 1;
     index |= getindex(statement[4], &getindex2[0]) << 2;
 
-    printf("	LDX #");
+    fprintf(outputFile, "	LDX #");
     if (!strncmp(statement[5], "flip", 2))
         on_off_flip = 2;
     else if (!strncmp(statement[5], "off", 2))
         on_off_flip = 1;
     if (bs == 28)
-        printf("%d\n	STX DF0WRITE\n", on_off_flip | 4);
+        fprintf(outputFile, "%d\n	STX DF0WRITE\n", on_off_flip | 4);
     else
-        printf("%d\n", on_off_flip);
+        fprintf(outputFile, "%d\n", on_off_flip);
 
     if (index & 4)
         loadindex(&getindex2[0]);
-    printf("	LDA ");
+    fprintf(outputFile, "	LDA ");
     printindex(statement[4], index & 4);
     if (bs == 28)
-        printf("	STA DF0WRITE\n");
+        fprintf(outputFile, "	STA DF0WRITE\n");
     else
-        printf("	STA temp3\n");
+        fprintf(outputFile, "	STA temp3\n");
 
     if (index & 2)
         loadindex(&getindex1[0]);
-    printf("	LDY ");
+    fprintf(outputFile, "	LDY ");
     printindex(statement[3], index & 2);
     if (bs == 28)
-        printf("	STY DF0WRITE\n");
+        fprintf(outputFile, "	STY DF0WRITE\n");
 
     if (index & 1)
         loadindex(&getindex0[0]);
-    printf("	LDA ");
+    fprintf(outputFile, "	LDA ");
     printindex(statement[2], index & 1);
 
     if (bs == 28) {
-        printf("	STA DF0WRITE\n");
-        printf("	lda #255\n	sta CALLFUNCTION\n");
+        fprintf(outputFile, "	STA DF0WRITE\n");
+        fprintf(outputFile, "	lda #255\n	sta CALLFUNCTION\n");
     } else
         jsr("pfvline");
 }
@@ -2428,29 +2430,29 @@ void pfscroll(char **statement) {
         return;
     }
     if (multisprite == 1) {
-        printf("	LDA #");
+        fprintf(outputFile, "	LDA #");
         if (!strncmp(statement[2], "up\0", 2))
-            printf("0\n");
+            fprintf(outputFile, "0\n");
         else if (!strncmp(statement[2], "down", 2))
-            printf("1\n");
+            fprintf(outputFile, "1\n");
         else {
             fprintf(stderr, "(%d) pfscroll direction unknown in multisprite kernel\n", line);
             exit(1);
         }
     } else {
-        printf("	LDA #");
+        fprintf(outputFile, "	LDA #");
         if (!strncmp(statement[2], "left", 2))
-            printf("0\n");
+            fprintf(outputFile, "0\n");
         else if (!strncmp(statement[2], "right", 2))
-            printf("1\n");
+            fprintf(outputFile, "1\n");
         else if (!strncmp(statement[2], "upup\0", 4))
-            printf("6\n");
+            fprintf(outputFile, "6\n");
         else if (!strncmp(statement[2], "downdown", 6))
-            printf("8\n");
+            fprintf(outputFile, "8\n");
         else if (!strncmp(statement[2], "up\0", 2))
-            printf("2\n");
+            fprintf(outputFile, "2\n");
         else if (!strncmp(statement[2], "down", 2))
-            printf("4\n");
+            fprintf(outputFile, "4\n");
         else {
             fprintf(stderr, "(%d) pfscroll direction unknown\n", line);
             exit(1);
@@ -2470,7 +2472,7 @@ void doasm() {
         line++;
         if (!strncmp(data, "end\0", 3))
             break;
-        printf("%s\n", data);
+        fprintf(outputFile, "%s\n", data);
 
     }
 }
@@ -2478,7 +2480,7 @@ void doasm() {
 void domacro(char **statement) {
     int k, j = 1, i = 3;
     macroactive = 1;
-    printf(" MAC %s\n", statement[2]);
+    fprintf(outputFile, " MAC %s\n", statement[2]);
 
     while ((statement[i][0] != ':') && (statement[i][0] != '\0')) {
         for (k = 0; k < 200; ++k)
@@ -2487,7 +2489,7 @@ void domacro(char **statement) {
         if (!strncmp(statement[i], "const\0", 5))
             strcpy(constants[numconstants++], statement[i + 1]);    // record to const queue
         else
-            printf("%s SET {%d}\n", statement[i], j++);
+            fprintf(outputFile, "%s SET {%d}\n", statement[i], j++);
         i++;
     }
 }
@@ -2495,39 +2497,39 @@ void domacro(char **statement) {
 void callmacro(char **statement) {
     int k, i = 3;
     macroactive = 1;
-    printf(" %s", statement[2]);
+    fprintf(outputFile, " %s", statement[2]);
 
     while ((statement[i][0] != ':') && (statement[i][0] != '\0')) {
         for (k = 0; k < 200; ++k)
             if ((statement[i][k] == (unsigned char) 0x0A) || (statement[i][k] == (unsigned char) 0x0D))
                 statement[i][k] = '\0';
         if (isimmed(statement[i]))
-            printf(" #%s,", statement[i]);    // we're assuming the assembler doesn't mind extra commas!
+            fprintf(outputFile, " #%s,", statement[i]);    // we're assuming the assembler doesn't mind extra commas!
         else
-            printf(" %s,", statement[i]);    // we're assuming the assembler doesn't mind extra commas!
+            fprintf(outputFile, " %s,", statement[i]);    // we're assuming the assembler doesn't mind extra commas!
         i++;
     }
-    printf("\n");
+    fprintf(outputFile, "\n");
 }
 
 void doextra(char *extrano) {
     extraactive = 1;
-    printf("extra set %d\n", ++extra);
-//  printf(".extra%c",extrano[5]);
-//   if (extrano[6]!=':') printf("%c",extrano[6]);
-//  printf("\n");
-    printf(" MAC extra%c", extrano[5]);
+    fprintf(outputFile, "extra set %d\n", ++extra);
+//  fprintf(outputFile, ".extra%c",extrano[5]);
+//   if (extrano[6]!=':') fprintf(outputFile, "%c",extrano[6]);
+//  fprintf(outputFile, "\n");
+    fprintf(outputFile, " MAC extra%c", extrano[5]);
     if (extrano[6] != ':')
-        printf("%c", extrano[6]);
-    printf("\n");
+        fprintf(outputFile, "%c", extrano[6]);
+    fprintf(outputFile, "\n");
 }
 
 void doend() {
     if (extraactive) {
-        printf(" ENDM\n");
+        fprintf(outputFile, " ENDM\n");
         extraactive = 0;
     } else if (macroactive) {
-        printf(" ENDM\n");
+        fprintf(outputFile, " ENDM\n");
         macroactive = 0;
     } else
         prerror("extraneous end statement found");
@@ -2555,43 +2557,43 @@ void player(char **statement) {
     if (multisprite == 2) {
         // handle DPC+ version
         if (pl != '0') {
-            printf("	lda #<(playerpointers+%d)\n", (pl - 49) * 2 + 18 * doingcolor);
-            printf("	sta DF0LOW\n");
-            printf("	lda #(>(playerpointers+%d)) & $0F\n", (pl - 49) * 2 + 18 * doingcolor);
-            printf("	sta DF0HI\n");
+            fprintf(outputFile, "	lda #<(playerpointers+%d)\n", (pl - 49) * 2 + 18 * doingcolor);
+            fprintf(outputFile, "	sta DF0LOW\n");
+            fprintf(outputFile, "	lda #(>(playerpointers+%d)) & $0F\n", (pl - 49) * 2 + 18 * doingcolor);
+            fprintf(outputFile, "	sta DF0HI\n");
         }
-        printf("	LDX #<%s\n", label);
+        fprintf(outputFile, "	LDX #<%s\n", label);
         if (pl != '0') {
-            printf("	STX DF0WRITE\n");
+            fprintf(outputFile, "	STX DF0WRITE\n");
         }
-        printf("	LDA #((>%s) & $0f) | (((>%s) / 2) & $70)\n", label, label);    // DPC+
+        fprintf(outputFile, "	LDA #((>%s) & $0f) | (((>%s) / 2) & $70)\n", label, label);    // DPC+
         if (pl != '0') {
-            printf("	STA DF0WRITE\n");
+            fprintf(outputFile, "	STA DF0WRITE\n");
         }
         if ((statement[1][7] == '-') && (pl != '0'))    // multiple players
         {
             for (j = statement[1][6] + 1; j <= statement[1][8]; j++) {
-                printf("	STX DF0WRITE\n");
-                printf("	STA DF0WRITE\n");    // creates multiple "copies" of single sprite
+                fprintf(outputFile, "	STX DF0WRITE\n");
+                fprintf(outputFile, "	STA DF0WRITE\n");    // creates multiple "copies" of single sprite
             }
         }
 
     } else {
-        printf("	LDX #<%s\n", label);
+        fprintf(outputFile, "	LDX #<%s\n", label);
         if (!doingcolor) {
-            printf("	STX player%cpointerlo\n", pl);
+            fprintf(outputFile, "	STX player%cpointerlo\n", pl);
         } else {
-            printf("	STX player%ccolor\n", pl);
+            fprintf(outputFile, "	STX player%ccolor\n", pl);
         }
-        printf("	LDA #>%s\n", label);
+        fprintf(outputFile, "	LDA #>%s\n", label);
         if (!doingcolor)
-            printf("	STA player%cpointerhi\n", pl);
+            fprintf(outputFile, "	STA player%cpointerhi\n", pl);
         else
-            printf("	STA player%ccolor+1\n", pl);
+            fprintf(outputFile, "	STA player%ccolor+1\n", pl);
 
     }
 
-    //printf("    JMP .%sjump%c\n",statement[0],pl);
+    //fprintf(outputFile, "    JMP .%sjump%c\n",statement[0],pl);
 
     // insert DASM stuff to prevent page-wrapping of player data
     // stick this in a data file instead of displaying
@@ -2664,21 +2666,21 @@ void player(char **statement) {
     if (multisprite == 1 && pl == '0')
         height--;
 
-//  printf(".%sjump%c\n",statement[0],pl);
+//  fprintf(outputFile, ".%sjump%c\n",statement[0],pl);
     if (multisprite == 1)
-        printf("	LDA #%d\n", height + 1);    //2);
+        fprintf(outputFile, "	LDA #%d\n", height + 1);    //2);
     else if ((multisprite == 2) && (!doingcolor))
-        printf("	LDA #%d\n", height);
+        fprintf(outputFile, "	LDA #%d\n", height);
     else if (!doingcolor)
-        printf("	LDA #%d\n", height - 1);    // added -1);
+        fprintf(outputFile, "	LDA #%d\n", height - 1);    // added -1);
     if (!doingcolor)
-        printf("	STA player%cheight\n", pl);
+        fprintf(outputFile, "	STA player%cheight\n", pl);
 
     if ((statement[1][7] == '-') && (multisprite == 2) && (pl != '0'))    // multiple players
     {
         for (j = statement[1][6] + 1; j <= statement[1][8]; j++) {
             if (!doingcolor)
-                printf("	STA player%cheight\n", j);
+                fprintf(outputFile, "	STA player%cheight\n", j);
         }
     }
 
@@ -2697,13 +2699,13 @@ void lives(char **statement) {
     sprintf(label, "lives__%s\n", statement[0]);
     removeCR(label);
 
-    printf("	LDA #<%s\n", label);
-    printf("	STA lifepointer\n");
+    fprintf(outputFile, "	LDA #<%s\n", label);
+    fprintf(outputFile, "	STA lifepointer\n");
 
-    printf("	LDA lifepointer+1\n");
-    printf("	AND #$E0\n");
-    printf("	ORA #(>%s)&($1F)\n", label);
-    printf("	STA lifepointer+1\n");
+    fprintf(outputFile, "	LDA lifepointer+1\n");
+    fprintf(outputFile, "	AND #$E0\n");
+    fprintf(outputFile, "	ORA #(>%s)&($1F)\n", label);
+    fprintf(outputFile, "	STA lifepointer+1\n");
 
     sprintf(sprite_data[sprite_index++], " if (<*) > (<(*+8))\n");
     sprintf(sprite_data[sprite_index++], "	repeat ($100-<*)\n	.byte 0\n");
@@ -2731,97 +2733,97 @@ void lives(char **statement) {
 int check_colls(char *statement) {
     int bit;
     if (!strncmp(statement, "collision(missile0,player1)\0", 27)) {
-        printf("	CXM0P");
+        fprintf(outputFile, "	CXM0P");
         bit = 7;
     } else if (!strncmp(statement, "collision(missile0,player0)\0", 27)) {
-        printf("	CXM0P");
+        fprintf(outputFile, "	CXM0P");
         bit = 6;
     } else if (!strncmp(statement, "collision(missile1,player0)\0", 27)) {
-        printf("	CXM1P");
+        fprintf(outputFile, "	CXM1P");
         bit = 7;
     } else if (!strncmp(statement, "collision(missile1,player1)\0", 27)) {
-        printf("	CXM1P");
+        fprintf(outputFile, "	CXM1P");
         bit = 6;
     } else if (!strncmp(statement, "collision(player0,playfield)\0", 28)) {
-        printf("	CXP0FB");
+        fprintf(outputFile, "	CXP0FB");
         bit = 7;
     } else if (!strncmp(statement, "collision(player0,ball)\0", 23)) {
-        printf("	CXP0FB");
+        fprintf(outputFile, "	CXP0FB");
         bit = 6;
     } else if (!strncmp(statement, "collision(player1,playfield)\0", 28)) {
-        printf("	CXP1FB");
+        fprintf(outputFile, "	CXP1FB");
         bit = 7;
     } else if (!strncmp(statement, "collision(player1,ball)\0", 23)) {
-        printf("	CXP1FB");
+        fprintf(outputFile, "	CXP1FB");
         bit = 6;
     } else if (!strncmp(statement, "collision(missile0,playfield)\0", 29)) {
-        printf("	CXM0FB");
+        fprintf(outputFile, "	CXM0FB");
         bit = 7;
     } else if (!strncmp(statement, "collision(missile0,ball)\0", 24)) {
-        printf("	CXM0FB");
+        fprintf(outputFile, "	CXM0FB");
         bit = 6;
     } else if (!strncmp(statement, "collision(missile1,playfield)\0", 29)) {
-        printf("	CXM1FB");
+        fprintf(outputFile, "	CXM1FB");
         bit = 7;
     } else if (!strncmp(statement, "collision(missile1,ball)\0", 24)) {
-        printf("	CXM1FB");
+        fprintf(outputFile, "	CXM1FB");
         bit = 6;
     } else if (!strncmp(statement, "collision(ball,playfield)\0", 25)) {
-        printf("	CXBLPF");
+        fprintf(outputFile, "	CXBLPF");
         bit = 7;
     } else if (!strncmp(statement, "collision(player0,player1)\0", 26)) {
-        printf("	CXPPMM");
+        fprintf(outputFile, "	CXPPMM");
         bit = 7;
     } else if (!strncmp(statement, "collision(missile0,missile1)\0", 28)) {
-        printf("	CXPPMM");
+        fprintf(outputFile, "	CXPPMM");
         bit = 6;
     }                // now repeat everything in reverse...
 
 
     else if (!strncmp(statement, "collision(player1,missile0)\0", 27)) {
-        printf("	CXM0P");
+        fprintf(outputFile, "	CXM0P");
         bit = 7;
     } else if (!strncmp(statement, "collision(player0,missile0)\0", 27)) {
-        printf("	CXM0P");
+        fprintf(outputFile, "	CXM0P");
         bit = 6;
     } else if (!strncmp(statement, "collision(player0,missile1)\0", 27)) {
-        printf("	CXM1P");
+        fprintf(outputFile, "	CXM1P");
         bit = 7;
     } else if (!strncmp(statement, "collision(player1,missile1)\0", 27)) {
-        printf("	CXM1P");
+        fprintf(outputFile, "	CXM1P");
         bit = 6;
     } else if (!strncmp(statement, "collision(playfield,player0)\0", 28)) {
-        printf("	CXP0FB");
+        fprintf(outputFile, "	CXP0FB");
         bit = 7;
     } else if (!strncmp(statement, "collision(ball,player0)\0", 23)) {
-        printf("	CXP0FB");
+        fprintf(outputFile, "	CXP0FB");
         bit = 6;
     } else if (!strncmp(statement, "collision(playfield,player1)\0", 28)) {
-        printf("	CXP1FB");
+        fprintf(outputFile, "	CXP1FB");
         bit = 7;
     } else if (!strncmp(statement, "collision(ball,player1)\0", 23)) {
-        printf("	CXP1FB");
+        fprintf(outputFile, "	CXP1FB");
         bit = 6;
     } else if (!strncmp(statement, "collision(playfield,missile0)\0", 29)) {
-        printf("	CXM0FB");
+        fprintf(outputFile, "	CXM0FB");
         bit = 7;
     } else if (!strncmp(statement, "collision(ball,missile0)\0", 24)) {
-        printf("	CXM0FB");
+        fprintf(outputFile, "	CXM0FB");
         bit = 6;
     } else if (!strncmp(statement, "collision(playfield,missile1)\0", 29)) {
-        printf("	CXM1FB");
+        fprintf(outputFile, "	CXM1FB");
         bit = 7;
     } else if (!strncmp(statement, "collision(ball,missile1)\0", 24)) {
-        printf("	CXM1FB");
+        fprintf(outputFile, "	CXM1FB");
         bit = 6;
     } else if (!strncmp(statement, "collision(playfield,ball)\0", 25)) {
-        printf("	CXBLPF");
+        fprintf(outputFile, "	CXBLPF");
         bit = 7;
     } else if (!strncmp(statement, "collision(player1,player0)\0", 26)) {
-        printf("	CXPPMM");
+        fprintf(outputFile, "	CXPPMM");
         bit = 7;
     } else if (!strncmp(statement, "collision(missile1,missile0)\0", 28)) {
-        printf("	CXPPMM");
+        fprintf(outputFile, "	CXPPMM");
         bit = 6;
     }
     return bit;
@@ -2830,11 +2832,11 @@ int check_colls(char *statement) {
 void scorecolors(char **statement) {
     int i = 0;    //height can change
     char data[200];
-    printf("	lda #<scoredata\n");
-    printf("	STA DF0LOW\n");
+    fprintf(outputFile, "	lda #<scoredata\n");
+    fprintf(outputFile, "	STA DF0LOW\n");
 
-    printf("	lda #((>scoredata) & $0f)\n");
-    printf("	STA DF0HI\n");
+    fprintf(outputFile, "	lda #((>scoredata) & $0f)\n");
+    fprintf(outputFile, "	STA DF0HI\n");
     for (i = 0; i < 9; ++i) {
         if (read_source_line(data)) {
             prerror("Error: Not enough data for scorecolor declaration\n");
@@ -2847,10 +2849,10 @@ void scorecolors(char **statement) {
             prerror("Error: Missing \"end\" keyword at end of scorecolor declaration\n");
             exit(1);
         }
-        printf("	lda ");
+        fprintf(outputFile, "	lda ");
         printimmed(data);
-        printf("%s\n", data);
-        printf("	sta DF0WRITE\n");
+        fprintf(outputFile, "%s\n", data);
+        fprintf(outputFile, "	sta DF0WRITE\n");
     }
 }
 
@@ -2959,7 +2961,7 @@ int check_collisions(char **statement) {
             case CLD_BALL:      collisionReg = "CXBLPF"; bit = 7; break;
         }
     }
-    if (bit) printf("    %s", collisionReg);    //--- output collision register
+    if (bit) fprintf(outputFile, "    %s", collisionReg);    //--- output collision register
     return bit;
 }
 
@@ -3067,33 +3069,33 @@ void doif(char **statement) {
         {
             if (!i) {
                 if (not)
-                    printf("	BEQ ");
+                    fprintf(outputFile, "	BEQ ");
                 else
-                    printf("	BNE ");
+                    fprintf(outputFile, "	BNE ");
             }
             if (i == 1) {
                 if (not)
-                    printf("	BVC ");
+                    fprintf(outputFile, "	BVC ");
                 else
-                    printf("	BVS ");
+                    fprintf(outputFile, "	BVS ");
             }
             if (i == 2) {
                 if (not)
-                    printf("	BPL ");
+                    fprintf(outputFile, "	BPL ");
                 else
-                    printf("	BMI ");
+                    fprintf(outputFile, "	BMI ");
             }
 
-            printf(".skip%s\n", statement[0]);
+            fprintf(outputFile, ".skip%s\n", statement[0]);
             // separate statement
             for (i = 3; i < 200; ++i) {
                 for (k = 0; k < 200; ++k) {
                     cstatement[i - 3][k] = statement[i][k];
                 }
             }
-            printf(".condpart%d\n", condpart++);
+            fprintf(outputFile, ".condpart%d\n", condpart++);
             keywords(cstatement);
-            printf(".skip%s\n", statement[0]);
+            fprintf(outputFile, ".skip%s\n", statement[0]);
         }
         freemem(dealloccstatement);
         return;
@@ -3110,20 +3112,20 @@ void doif(char **statement) {
         } else            // then statement
         {
             if (not)
-                printf("	BEQ ");
+                fprintf(outputFile, "	BEQ ");
             else
-                printf("	BNE ");
+                fprintf(outputFile, "	BNE ");
 
-            printf(".skip%s\n", statement[0]);
+            fprintf(outputFile, ".skip%s\n", statement[0]);
             // separate statement
             for (i = 8; i < 200; ++i) {
                 for (k = 0; k < 200; ++k) {
                     cstatement[i - 8][k] = statement[i][k];
                 }
             }
-            printf(".condpart%d\n", condpart++);
+            fprintf(outputFile, ".condpart%d\n", condpart++);
             keywords(cstatement);
-            printf(".skip%s\n", statement[0]);
+            fprintf(outputFile, ".skip%s\n", statement[0]);
         }
         freemem(dealloccstatement);
         return;
@@ -3150,10 +3152,10 @@ void doif(char **statement) {
         }
 
         if (!bit) {
-            printf("	bit ");
+            fprintf(outputFile, "	bit ");
             //bit = check_colls(statement[2]);
             bit = check_collisions(&statement[2]);
-            printf("\n");
+            fprintf(outputFile, "\n");
         }
         if (!bit)        //error
         {
@@ -3183,17 +3185,17 @@ void doif(char **statement) {
         {
             if (not) {
                 if (bit == 7)
-                    printf("	BMI ");
+                    fprintf(outputFile, "	BMI ");
                 else
-                    printf("	BVS ");
+                    fprintf(outputFile, "	BVS ");
             } else {
                 if (bit == 7)
-                    printf("	BPL ");
+                    fprintf(outputFile, "	BPL ");
                 else
-                    printf("	BVC ");
+                    fprintf(outputFile, "	BVC ");
             }
 
-            printf(".skip%s\n", statement[0]);
+            fprintf(outputFile, ".skip%s\n", statement[0]);
             // separate statement
             int stmtStart = 8; // old: 3 with collision() = 2
             for (i = stmtStart; i < 200; ++i) {
@@ -3201,9 +3203,9 @@ void doif(char **statement) {
                     cstatement[i - stmtStart][k] = statement[i][k];
                 }
             }
-            printf(".condpart%d\n", condpart++);
+            fprintf(outputFile, ".condpart%d\n", condpart++);
             keywords(cstatement);
-            printf(".skip%s\n", statement[0]);
+            fprintf(outputFile, ".skip%s\n", statement[0]);
         }
         freemem(dealloccstatement);
         return;
@@ -3231,13 +3233,13 @@ void doif(char **statement) {
         }
         if ((bit == 7) || (bit == 6))    // if bit 6 or 7, we can use BIT and save 2 bytes
         {
-            printf("	BIT ");
+            fprintf(outputFile, "	BIT ");
             for (i = 0; i < 200; ++i) {
                 if (statement[2][i] == '{')
                     break;
-                printf("%c", statement[2][i]);
+                fprintf(outputFile, "%c", statement[2][i]);
             }
-            printf("\n");
+            fprintf(outputFile, "\n");
             if (!islabel(statement)) {
                 if (!not) {
                     if (bit == 7)
@@ -3254,41 +3256,41 @@ void doif(char **statement) {
             {
                 if (not) {
                     if (bit == 7)
-                        printf("	BMI ");
+                        fprintf(outputFile, "	BMI ");
                     else
-                        printf("	BVS ");
+                        fprintf(outputFile, "	BVS ");
                 } else {
                     if (bit == 7)
-                        printf("	BPL ");
+                        fprintf(outputFile, "	BPL ");
                     else
-                        printf("	BVC ");
+                        fprintf(outputFile, "	BVC ");
                 }
 
-                printf(".skip%s\n", statement[0]);
+                fprintf(outputFile, ".skip%s\n", statement[0]);
                 // separate statement
                 for (i = 3; i < 200; ++i) {
                     for (k = 0; k < 200; ++k) {
                         cstatement[i - 3][k] = statement[i][k];
                     }
                 }
-                printf(".condpart%d\n", condpart++);
+                fprintf(outputFile, ".condpart%d\n", condpart++);
                 keywords(cstatement);
-                printf(".skip%s\n", statement[0]);
+                fprintf(outputFile, ".skip%s\n", statement[0]);
 
             }
         } else {
             Aregmatch = 0;
-            printf("	LDA ");
+            fprintf(outputFile, "	LDA ");
             for (i = 0; i < 200; ++i) {
                 if (statement[2][i] == '{')
                     break;
-                printf("%c", statement[2][i]);
+                fprintf(outputFile, "%c", statement[2][i]);
             }
-            printf("\n");
+            fprintf(outputFile, "\n");
             if (!bit)        // if bit 0, we can use LSR and save a byte
-                printf("	LSR\n");
+                fprintf(outputFile, "	LSR\n");
             else
-                printf("	AND #%d\n", 1 << bit);    //(int)pow(2,bit));
+                fprintf(outputFile, "	AND #%d\n", 1 << bit);    //(int)pow(2,bit));
             if (!islabel(statement)) {
                 if (not) {
                     if (!bit)
@@ -3306,26 +3308,26 @@ void doif(char **statement) {
             {
                 if (not) {
                     if (!bit)
-                        printf("	BCS ");
+                        fprintf(outputFile, "	BCS ");
                     else
-                        printf("	BNE ");
+                        fprintf(outputFile, "	BNE ");
                 } else {
                     if (!bit)
-                        printf("	BCC ");
+                        fprintf(outputFile, "	BCC ");
                     else
-                        printf("	BEQ ");
+                        fprintf(outputFile, "	BEQ ");
                 }
 
-                printf(".skip%s\n", statement[0]);
+                fprintf(outputFile, ".skip%s\n", statement[0]);
                 // separate statement
                 for (i = 3; i < 200; ++i) {
                     for (k = 0; k < 200; ++k) {
                         cstatement[i - 3][k] = statement[i][k];
                     }
                 }
-                printf(".condpart%d\n", condpart++);
+                fprintf(outputFile, ".condpart%d\n", condpart++);
                 keywords(cstatement);
-                printf(".skip%s\n", statement[0]);
+                fprintf(outputFile, ".skip%s\n", statement[0]);
 
             }
         }
@@ -3374,27 +3376,27 @@ void doif(char **statement) {
         {            // first, take negative of condition and branch around statement
             j = i;
             if (not)
-                printf("	BNE ");
+                fprintf(outputFile, "	BNE ");
             else
-                printf("	BEQ ");
+                fprintf(outputFile, "	BEQ ");
         }
-        printf(".skip%s\n", statement[0]);
+        fprintf(outputFile, ".skip%s\n", statement[0]);
         // separate statement
         for (i = j; i < 200; ++i) {
             for (k = 0; k < 200; ++k) {
                 cstatement[i - j][k] = statement[i][k];
             }
         }
-        printf(".condpart%d\n", condpart++);
+        fprintf(outputFile, ".condpart%d\n", condpart++);
         keywords(cstatement);
-        printf(".skip%s\n", statement[0]);
+        fprintf(outputFile, ".skip%s\n", statement[0]);
 
 
         Aregmatch = 0;
         freemem(dealloccstatement);
         return;
     } else if (((k < i) && (i - k != 2)) || ((k < i) && (k > 3))) {
-        printf("; complex condition detected\n");
+        fprintf(outputFile, "; complex condition detected\n");
         // complex statements will be changed to assignments and reissued as assignments followed by a simple compare
         // i=location of then
         // k=location of conditional operator
@@ -3442,7 +3444,7 @@ void doif(char **statement) {
                 }
             }
             dolet(cstatement);
-            printf("  PHA\n");
+            fprintf(outputFile, "  PHA\n");
             // second statement:
             strcpy(cstatement[2], "Areg\0");
             strcpy(cstatement[3], "=\0");
@@ -3452,7 +3454,7 @@ void doif(char **statement) {
                 }
             }
             dolet(cstatement);
-            printf("  PHA\n");
+            fprintf(outputFile, "  PHA\n");
             situation = 1;
         } else if (push1 == 1 && push2 == 1)    // two pushes plus swaps
         {
@@ -3465,7 +3467,7 @@ void doif(char **statement) {
                 }
             }
             dolet(cstatement);
-            printf("  PHA\n");
+            fprintf(outputFile, "  PHA\n");
 
             // first statement second
             strcpy(cstatement[2], "Areg\0");
@@ -3476,7 +3478,7 @@ void doif(char **statement) {
                 }
             }
             dolet(cstatement);
-            printf("  PHA\n");
+            fprintf(outputFile, "  PHA\n");
 
             // now change operator
             // > or <= swap
@@ -3495,7 +3497,7 @@ void doif(char **statement) {
                 }
             }
             dolet(cstatement);
-            //printf("  PHA\n");
+            //fprintf(outputFile, "  PHA\n");
             situation = 3;
 
         } else if (push1 == 1) {
@@ -3508,7 +3510,7 @@ void doif(char **statement) {
                 }
             }
             dolet(cstatement);
-            printf("  PHA\n");
+            fprintf(outputFile, "  PHA\n");
 
             // now change operator
             // > or <= swap
@@ -3533,7 +3535,7 @@ void doif(char **statement) {
                 }
             }
             dolet(cstatement);
-            printf("  PHA\n");
+            fprintf(outputFile, "  PHA\n");
             situation = 5;
         } else if (push2 == 1) {
             // second statement only, swap:
@@ -3545,7 +3547,7 @@ void doif(char **statement) {
                 }
             }
             dolet(cstatement);
-            //printf("  PHA\n");
+            //fprintf(outputFile, "  PHA\n");
             // now change operator
             // > or <= swap
             if (!strncmp(statement[k], ">\0", 2))
@@ -3564,11 +3566,11 @@ void doif(char **statement) {
             exit(1);
         }
         if (situation != 6 && situation != 3) {
-            printf("  TSX\n");    //index to stack
+            fprintf(outputFile, "  TSX\n");    //index to stack
             if (push1)
-                printf("  PLA\n");
+                fprintf(outputFile, "  PLA\n");
             if (push2)
-                printf("  PLA\n");
+                fprintf(outputFile, "  PLA\n");
         }
         if (push1 && push2)
             strcpy(cstatement[2], " 2[TSX]\0");
@@ -3603,7 +3605,7 @@ void doif(char **statement) {
             doif(cstatement);    // okay to recurse
         else if (statement[i][0] == '&') {
             if (situation != 4 && situation != 5)
-                printf("; todo: this LDA is spurious and should be prevented ->");
+                fprintf(outputFile, "; todo: this LDA is spurious and should be prevented ->");
             keywords(cstatement);    // statement still has booleans - attempt to reanalyze
         } else {
             prerror("if-then too complex for logical OR\n");
@@ -3621,7 +3623,7 @@ void doif(char **statement) {
     {
         if (index & 1)
             loadindex(&getindex0[0]);
-        printf("	LDA ");
+        fprintf(outputFile, "	LDA ");
         printindex(statement[2], index & 1);
         strcpy(Areg, Aregcopy);
     }
@@ -3630,7 +3632,7 @@ void doif(char **statement) {
 //todo:check for cmp #0--useless except for <, > to clear carry
     if (strncmp(statement[3], "then\0", 4)) {
         if (statement[3][0] == '&') {
-            printf("	AND ");
+            fprintf(outputFile, "	AND ");
             if (not) {
                 statement[3][0] = '=';    // force beq/bne below
                 statement[3][1] = '\0';
@@ -3640,7 +3642,7 @@ void doif(char **statement) {
                 statement[3][2] = '\0';
             }
         } else
-            printf("	CMP ");
+            fprintf(outputFile, "	CMP ");
         printindex(statement[4], index & 2);
     }
 
@@ -3662,23 +3664,23 @@ void doif(char **statement) {
     } else            // then statement
     {                // first, take negative of condition and branch around statement
         if (statement[3][0] == '=')
-            printf("     BNE ");
+            fprintf(outputFile, "     BNE ");
         if (!strcmp(statement[3], "<>"))
-            printf("     BEQ ");
+            fprintf(outputFile, "     BEQ ");
         else if (statement[3][0] == '<')
-            printf("     BCS ");
+            fprintf(outputFile, "     BCS ");
         if (statement[3][0] == '>')
-            printf("     BCC ");
+            fprintf(outputFile, "     BCC ");
         j = 5;
 
         if (!strncmp(statement[3], "then\0", 4)) {
             j = 3;
             if (not)
-                printf("	BNE ");
+                fprintf(outputFile, "	BNE ");
             else
-                printf("	BEQ ");
+                fprintf(outputFile, "	BEQ ");
         }
-        printf(".skip%s\n", statement[0]);
+        fprintf(outputFile, ".skip%s\n", statement[0]);
         // separate statement
 
         // separate statement
@@ -3687,9 +3689,9 @@ void doif(char **statement) {
                 cstatement[i - j][k] = statement[i][k];
             }
         }
-        printf(".condpart%d\n", condpart++);
+        fprintf(outputFile, ".condpart%d\n", condpart++);
         keywords(cstatement);
-        printf(".skip%s\n", statement[0]);
+        fprintf(outputFile, ".skip%s\n", statement[0]);
 
         freemem(dealloccstatement);
         return;
@@ -3701,7 +3703,7 @@ void doif(char **statement) {
 //      cstatement[i-4]=statement[i++];
 //    }
 //    keywords(cstatement);
-//    printf(".skip%s\n",statement[0]);
+//    fprintf(outputFile, ".skip%s\n",statement[0]);
     }
     freemem(dealloccstatement);
 }
@@ -3751,33 +3753,33 @@ void displayoperation(char *opcode, char *operand, int index) {
     if (!strncmp(operand, "stackpull\0", 9)) {
         if (opcode[0] == '-') {
             // operands swapped
-            printf("	TAY\n");
-            printf("	PLA\n");
-            printf("	TSX\n");
-            printf("	STY $00,x\n");
-            printf("	SEC\n");
-            printf("	SBC $00,x\n");
+            fprintf(outputFile, "	TAY\n");
+            fprintf(outputFile, "	PLA\n");
+            fprintf(outputFile, "	TSX\n");
+            fprintf(outputFile, "	STY $00,x\n");
+            fprintf(outputFile, "	SEC\n");
+            fprintf(outputFile, "	SBC $00,x\n");
         } else if (opcode[0] == '/') {
             // operands swapped
-            printf("	TAY\n");
-            printf("	PLA\n");
+            fprintf(outputFile, "	TAY\n");
+            fprintf(outputFile, "	PLA\n");
         } else {
-            printf("	TSX\n");
-            printf("	INX\n");
-            printf("	TXS\n");
-            printf("	%s $00,x\n", opcode + 1);
+            fprintf(outputFile, "	TSX\n");
+            fprintf(outputFile, "	INX\n");
+            fprintf(outputFile, "	TXS\n");
+            fprintf(outputFile, "	%s $00,x\n", opcode + 1);
         }
     } else {
-        printf("	%s ", opcode + 1);
+        fprintf(outputFile, "	%s ", opcode + 1);
         printindex(operand, index);
     }
 }
 
 void dec(char **cstatement) {
     decimal = 1;
-    printf("	SED\n");
+    fprintf(outputFile, "	SED\n");
     dolet(cstatement);
-    printf("	CLD\n");
+    fprintf(outputFile, "	CLD\n");
     decimal = 0;
 }
 
@@ -3833,7 +3835,7 @@ void dolet(char **cstatement) {
         && (!((statement[5][0] == '(') && (statement[4][0] != '(')))
         && ((unsigned char) statement[5][0] > (unsigned char) 0x20)
         && ((unsigned char) statement[7][0] > (unsigned char) 0x20)) {
-        printf("; complex statement detected\n");
+        fprintf(outputFile, "; complex statement detected\n");
         // complex statement here, hopefully.
         // convert equation to reverse-polish notation so we can express it in terms of
         // atomic equations and stack pushes/pulls
@@ -3921,7 +3923,7 @@ void dolet(char **cstatement) {
             } else if (isoperator(rpn_statement[sp + 2][0])) {
                 // val,val,operator: stackpush, then Areg=val1 (op) val2
                 if (sp)
-                    printf("	PHA\n");
+                    fprintf(outputFile, "	PHA\n");
                 strcpy(atomic_statement[2], "Areg");
                 strcpy(atomic_statement[3], "=");
                 strcpy(atomic_statement[4], rpn_statement[sp++]);
@@ -3936,7 +3938,7 @@ void dolet(char **cstatement) {
                 }
                 // val,val,val: stackpush, then load of next value
                 if (sp)
-                    printf("	PHA\n");
+                    fprintf(outputFile, "	PHA\n");
                 strcpy(atomic_statement[2], "Areg");
                 strcpy(atomic_statement[3], "=");
                 strcpy(atomic_statement[4], rpn_statement[sp++]);
@@ -3990,57 +3992,57 @@ void dolet(char **cstatement) {
         }
 
         if (statement[4][0] == '0') {
-            printf("	LDA ");
+            fprintf(outputFile, "	LDA ");
             for (i = 0; i < 200; ++i) {
                 if (statement[2][i] == '{')
                     break;
-                printf("%c", statement[2][i]);
+                fprintf(outputFile, "%c", statement[2][i]);
             }
-            printf("\n");
-            printf("	AND #%d\n", 255 ^ (1 << bit));    //(int)pow(2,bit));
+            fprintf(outputFile, "\n");
+            fprintf(outputFile, "	AND #%d\n", 255 ^ (1 << bit));    //(int)pow(2,bit));
         } else if (statement[4][0] == '1') {
-            printf("	LDA ");
+            fprintf(outputFile, "	LDA ");
             for (i = 0; i < 200; ++i) {
                 if (statement[2][i] == '{')
                     break;
-                printf("%c", statement[2][i]);
+                fprintf(outputFile, "%c", statement[2][i]);
             }
-            printf("\n");
-            printf("	ORA #%d\n", 1 << bit);    //(int)pow(2,bit));
+            fprintf(outputFile, "\n");
+            fprintf(outputFile, "	ORA #%d\n", 1 << bit);    //(int)pow(2,bit));
         } else if ((getbitvar = strtok(statement[4], "{"))) {            // assign one bit to another
             // removed NOP Abs to eventully support 0840 bankswitching
             if (getbitvar[0] == '!')
-                printf("	LDA %s\n", getbitvar + 1);
+                fprintf(outputFile, "	LDA %s\n", getbitvar + 1);
             else
-                printf("	LDA %s\n", getbitvar);
-            printf("	AND #%d\n", (1 << ((int) statement[4][strlen(getbitvar) + 1] - '0')));
-            printf("  PHP\n");
-            printf("	LDA ");
+                fprintf(outputFile, "	LDA %s\n", getbitvar);
+            fprintf(outputFile, "	AND #%d\n", (1 << ((int) statement[4][strlen(getbitvar) + 1] - '0')));
+            fprintf(outputFile, "  PHP\n");
+            fprintf(outputFile, "	LDA ");
             for (i = 0; i < 200; ++i) {
                 if (statement[2][i] == '{')
                     break;
-                printf("%c", statement[2][i]);
+                fprintf(outputFile, "%c", statement[2][i]);
             }
-            printf("\n	AND #%d\n", 255 ^ (1 << bit));    //(int)pow(2,bit));
-            printf("  PLP\n");
+            fprintf(outputFile, "\n	AND #%d\n", 255 ^ (1 << bit));    //(int)pow(2,bit));
+            fprintf(outputFile, "  PLP\n");
             if (getbitvar[0] == '!')
-                printf("	.byte $D0, $02\n");    //bad, bad way to do BEQ addr+5
+                fprintf(outputFile, "	.byte $D0, $02\n");    //bad, bad way to do BEQ addr+5
             else
-                printf("	.byte $F0, $02\n");    //bad, bad way to do BNE addr+5
+                fprintf(outputFile, "	.byte $F0, $02\n");    //bad, bad way to do BNE addr+5
 
-            printf("	ORA #%d\n", 1 << bit);    //(int)pow(2,bit));
+            fprintf(outputFile, "	ORA #%d\n", 1 << bit);    //(int)pow(2,bit));
 
         } else {
             fprintf(stderr, "(%d) Error: can only assign 0, 1 or another bit to a bit\n", line);
             exit(1);
         }
-        printf("	STA ");
+        fprintf(outputFile, "	STA ");
         for (i = 0; i < 200; ++i) {
             if (statement[2][i] == '{')
                 break;
-            printf("%c", statement[2][i]);
+            fprintf(outputFile, "%c", statement[2][i]);
         }
-        printf("\n");
+        fprintf(outputFile, "\n");
         free(deallocstatement);
         return;
     }
@@ -4051,32 +4053,32 @@ void dolet(char **cstatement) {
         if ((!fixpoint1) && (isfixpoint(statement[5]) != 12)) {
             if (statement[5][0] > (unsigned char) 0x39)    // perhaps include constants too?
             {
-                printf("	LDA #0\n");
-                printf("  SEC\n");
-                printf("	SBC %s\n", statement[5]);
+                fprintf(outputFile, "	LDA #0\n");
+                fprintf(outputFile, "  SEC\n");
+                fprintf(outputFile, "	SBC %s\n", statement[5]);
             } else
-                printf("	LDA #%d\n", 256 - atoi(statement[5]));
+                fprintf(outputFile, "	LDA #%d\n", 256 - atoi(statement[5]));
         } else {
             if (fixpoint1 == 4) {
                 if (statement[5][0] > (unsigned char) 0x39)    // perhaps include constants too?
                 {
-                    printf("	LDA #0\n");
-                    printf("  SEC\n");
-                    printf("	SBC %s\n", statement[5]);
+                    fprintf(outputFile, "	LDA #0\n");
+                    fprintf(outputFile, "  SEC\n");
+                    fprintf(outputFile, "	SBC %s\n", statement[5]);
                 } else
-                    printf("	LDA #%d\n", (int) ((16 - atof(statement[5])) * 16));
-                printf("	STA %s\n", statement[2]);
+                    fprintf(outputFile, "	LDA #%d\n", (int) ((16 - atof(statement[5])) * 16));
+                fprintf(outputFile, "	STA %s\n", statement[2]);
                 free(deallocstatement);
                 return;
             }
             if (fixpoint1 == 8) {
-                printf("	LDX ");
+                fprintf(outputFile, "	LDX ");
                 sprintf(statement[4], "%f", 256.0 - atof(statement[5]));
                 printfrac(statement[4]);
-                printf("	STX ");
+                fprintf(outputFile, "	STX ");
                 printfrac(statement[2]);
-                printf("	LDA #%s\n", statement[4]);
-                printf("	STA %s\n", statement[2]);
+                fprintf(outputFile, "	LDA #%s\n", statement[4]);
+                fprintf(outputFile, "	STA %s\n", statement[2]);
                 free(deallocstatement);
                 return;
             }
@@ -4084,27 +4086,27 @@ void dolet(char **cstatement) {
     } else if (!strncmp(statement[4], "rand\0", 4)) {
         strcpy(Areg, "invalid");
         if (optimization & 8) {
-            printf("        lda rand\n");
-            printf("        lsr\n");
-            printf(" ifconst rand16\n");
-            printf("        rol rand16\n");
-            printf(" endif\n");
-            printf("        bcc *+4\n");
-            printf("        eor #$B4\n");
-            printf("        sta rand\n");
-            printf(" ifconst rand16\n");
-            printf("        eor rand16\n");
-            printf(" endif\n");
+            fprintf(outputFile, "        lda rand\n");
+            fprintf(outputFile, "        lsr\n");
+            fprintf(outputFile, " ifconst rand16\n");
+            fprintf(outputFile, "        rol rand16\n");
+            fprintf(outputFile, " endif\n");
+            fprintf(outputFile, "        bcc *+4\n");
+            fprintf(outputFile, "        eor #$B4\n");
+            fprintf(outputFile, "        sta rand\n");
+            fprintf(outputFile, " ifconst rand16\n");
+            fprintf(outputFile, "        eor rand16\n");
+            fprintf(outputFile, " endif\n");
         } else if (bs == 28)
-            printf("        lda rand\n");
+            fprintf(outputFile, "        lda rand\n");
         else
             jsr("randomize");
     } else if ((!strncmp(statement[2], "score\0", 6)) && (strncmp(statement[2], "scorec\0", 6))) {
 // break up into three parts
         strcpy(Areg, "invalid");
         if (statement[5][0] == '+') {
-            printf("	SED\n");
-            printf("	CLC\n");
+            fprintf(outputFile, "	SED\n");
+            fprintf(outputFile, "	CLC\n");
             for (i = 5; i >= 0; i--) {
                 if (statement[6][i] != '\0')
                     score[j] = number(statement[6][i]);
@@ -4113,31 +4115,31 @@ void dolet(char **cstatement) {
                     j++;
             }
             if (score[0] | score[1]) {
-                printf("	LDA score+2\n");
+                fprintf(outputFile, "	LDA score+2\n");
                 if (statement[6][0] > (unsigned char) 0x3F)
-                    printf("	ADC %s\n", statement[6]);
+                    fprintf(outputFile, "	ADC %s\n", statement[6]);
                 else
-                    printf("	ADC #$%d%d\n", score[1], score[0]);
-                printf("	STA score+2\n");
+                    fprintf(outputFile, "	ADC #$%d%d\n", score[1], score[0]);
+                fprintf(outputFile, "	STA score+2\n");
             }
             if (score[0] | score[1] | score[2] | score[3]) {
-                printf("	LDA score+1\n");
+                fprintf(outputFile, "	LDA score+1\n");
                 if (score[0] > 9)
-                    printf("	ADC #0\n");
+                    fprintf(outputFile, "	ADC #0\n");
                 else
-                    printf("	ADC #$%d%d\n", score[3], score[2]);
-                printf("	STA score+1\n");
+                    fprintf(outputFile, "	ADC #$%d%d\n", score[3], score[2]);
+                fprintf(outputFile, "	STA score+1\n");
             }
-            printf("	LDA score\n");
+            fprintf(outputFile, "	LDA score\n");
             if (score[0] > 9)
-                printf("	ADC #0\n");
+                fprintf(outputFile, "	ADC #0\n");
             else
-                printf("	ADC #$%d%d\n", score[5], score[4]);
-            printf("	STA score\n");
-            printf("	CLD\n");
+                fprintf(outputFile, "	ADC #$%d%d\n", score[5], score[4]);
+            fprintf(outputFile, "	STA score\n");
+            fprintf(outputFile, "	CLD\n");
         } else if (statement[5][0] == '-') {
-            printf("	SED\n");
-            printf("	SEC\n");
+            fprintf(outputFile, "	SED\n");
+            fprintf(outputFile, "	SEC\n");
             for (i = 5; i >= 0; i--) {
                 if (statement[6][i] != '\0')
                     score[j] = number(statement[6][i]);
@@ -4145,25 +4147,25 @@ void dolet(char **cstatement) {
                 if ((score[j] < 10) && (score[j] >= 0))
                     j++;
             }
-            printf("	LDA score+2\n");
+            fprintf(outputFile, "	LDA score+2\n");
             if (score[0] > 9)
-                printf("	SBC %s\n", statement[6]);
+                fprintf(outputFile, "	SBC %s\n", statement[6]);
             else
-                printf("	SBC #$%d%d\n", score[1], score[0]);
-            printf("	STA score+2\n");
-            printf("	LDA score+1\n");
+                fprintf(outputFile, "	SBC #$%d%d\n", score[1], score[0]);
+            fprintf(outputFile, "	STA score+2\n");
+            fprintf(outputFile, "	LDA score+1\n");
             if (score[0] > 9)
-                printf("	SBC #0\n");
+                fprintf(outputFile, "	SBC #0\n");
             else
-                printf("	SBC #$%d%d\n", score[3], score[2]);
-            printf("	STA score+1\n");
-            printf("	LDA score\n");
+                fprintf(outputFile, "	SBC #$%d%d\n", score[3], score[2]);
+            fprintf(outputFile, "	STA score+1\n");
+            fprintf(outputFile, "	LDA score\n");
             if (score[0] > 9)
-                printf("	SBC #0\n");
+                fprintf(outputFile, "	SBC #0\n");
             else
-                printf("	SBC #$%d%d\n", score[5], score[4]);
-            printf("	STA score\n");
-            printf("	CLD\n");
+                fprintf(outputFile, "	SBC #$%d%d\n", score[5], score[4]);
+            fprintf(outputFile, "	STA score\n");
+            fprintf(outputFile, "	CLD\n");
         } else {
             for (i = 5; i >= 0; i--) {
                 if (statement[4][i] != '\0')
@@ -4172,12 +4174,12 @@ void dolet(char **cstatement) {
                 if ((score[j] < 10) && (score[j] >= 0))
                     j++;
             }
-            printf("	LDA #$%d%d\n", score[1], score[0]);
-            printf("	STA score+2\n");
-            printf("	LDA #$%d%d\n", score[3], score[2]);
-            printf("	STA score+1\n");
-            printf("	LDA #$%d%d\n", score[5], score[4]);
-            printf("	STA score\n");
+            fprintf(outputFile, "	LDA #$%d%d\n", score[1], score[0]);
+            fprintf(outputFile, "	STA score+2\n");
+            fprintf(outputFile, "	LDA #$%d%d\n", score[3], score[2]);
+            fprintf(outputFile, "	STA score+1\n");
+            fprintf(outputFile, "	LDA #$%d%d\n", score[5], score[4]);
+            fprintf(outputFile, "	STA score\n");
         }
         free(deallocstatement);
         return;
@@ -4192,18 +4194,18 @@ void dolet(char **cstatement) {
         strcpy(Areg, "invalid");
         if ((fixpoint1 == 4) && (fixpoint2 == 4)) {
             if (statement[5][0] == '+') {
-                printf("	LDA %s\n", statement[2]);
-                printf("	CLC\n");
-                printf("	ADC #16\n");
-                printf("	STA %s\n", statement[2]);
+                fprintf(outputFile, "	LDA %s\n", statement[2]);
+                fprintf(outputFile, "	CLC\n");
+                fprintf(outputFile, "	ADC #16\n");
+                fprintf(outputFile, "	STA %s\n", statement[2]);
                 free(deallocstatement);
                 return;
             }
             if (statement[5][0] == '-') {
-                printf("	LDA %s\n", statement[2]);
-                printf("	SEC\n");
-                printf("	SBC #16\n");
-                printf("	STA %s\n", statement[2]);
+                fprintf(outputFile, "	LDA %s\n", statement[2]);
+                fprintf(outputFile, "	SEC\n");
+                fprintf(outputFile, "	SBC #16\n");
+                fprintf(outputFile, "	STA %s\n", statement[2]);
                 free(deallocstatement);
                 return;
             }
@@ -4212,13 +4214,13 @@ void dolet(char **cstatement) {
         if (index & 1)
             loadindex(&getindex0[0]);
         if (statement[5][0] == '+')
-            printf("	INC ");
+            fprintf(outputFile, "	INC ");
         else
-            printf("	DEC ");
+            fprintf(outputFile, "	DEC ");
         if (!(index & 1))
-            printf("%s\n", statement[2]);
+            fprintf(outputFile, "%s\n", statement[2]);
         else
-            printf("%s,x\n", statement[4]);    // indexed with x!
+            fprintf(outputFile, "%s,x\n", statement[4]);    // indexed with x!
         free(deallocstatement);
 
         return;
@@ -4238,7 +4240,7 @@ void dolet(char **cstatement) {
 //      else
             {
                 if (strncmp(statement[4], "Areg\n", 4)) {
-                    printf("	LDA ");
+                    fprintf(outputFile, "	LDA ");
                     printindex(statement[4], index & 2);
                 }
             }
@@ -4258,128 +4260,128 @@ void dolet(char **cstatement) {
 //      else
 //      {
             if ((fixpoint1 == 8) && ((fixpoint2 & 8) == 8) && ((fixpoint3 & 8) == 8)) {            //8.8=8.8+8.8
-                printf("	LDA ");
+                fprintf(outputFile, "	LDA ");
                 printfrac(statement[4]);
-                printf("	CLC \n");
-                printf("	ADC ");
+                fprintf(outputFile, "	CLC \n");
+                fprintf(outputFile, "	ADC ");
                 printfrac(statement[6]);
-                printf("	STA ");
+                fprintf(outputFile, "	STA ");
                 printfrac(statement[2]);
-                printf("	LDA ");
+                fprintf(outputFile, "	LDA ");
                 printimmed(statement[4]);
-                printf("%s\n", statement[4]);
-                printf("	ADC ");
+                fprintf(outputFile, "%s\n", statement[4]);
+                fprintf(outputFile, "	ADC ");
                 printimmed(statement[6]);
-                printf("%s\n", statement[6]);
+                fprintf(outputFile, "%s\n", statement[6]);
             } else if ((fixpoint1 == 8) && ((fixpoint2 & 8) == 8) && (fixpoint3 == 4)) {
-                printf("	LDY %s\n", statement[6]);
-                printf("	LDX ");
+                fprintf(outputFile, "	LDY %s\n", statement[6]);
+                fprintf(outputFile, "	LDX ");
                 printfrac(statement[4]);
-                printf("	LDA ");
+                fprintf(outputFile, "	LDA ");
                 printimmed(statement[4]);
-                printf("%s\n", statement[4]);
+                fprintf(outputFile, "%s\n", statement[4]);
                 jsrbank1("Add44to88");
-                printf("	STX ");
+                fprintf(outputFile, "	STX ");
                 printfrac(statement[2]);
             } else if ((fixpoint1 == 8) && ((fixpoint3 & 8) == 8) && (fixpoint2 == 4)) {
-                printf("	LDY %s\n", statement[4]);
-                printf("	LDX ");
+                fprintf(outputFile, "	LDY %s\n", statement[4]);
+                fprintf(outputFile, "	LDX ");
                 printfrac(statement[6]);
-                printf("	LDA ");
+                fprintf(outputFile, "	LDA ");
                 printimmed(statement[6]);
-                printf("%s\n", statement[6]);
+                fprintf(outputFile, "%s\n", statement[6]);
                 jsrbank1("Add44to88");
-                printf("	STX ");
+                fprintf(outputFile, "	STX ");
                 printfrac(statement[2]);
             } else if ((fixpoint1 == 4) && (fixpoint2 == 8) && ((fixpoint3 & 4) == 4)) {
                 if (fixpoint3 == 4)
-                    printf("	LDY %s\n", statement[6]);
+                    fprintf(outputFile, "	LDY %s\n", statement[6]);
                 else
-                    printf("	LDY #%d\n", (int) (atof(statement[6]) * 16.0));
-                printf("	LDA %s\n", statement[4]);
-                printf("	LDX ");
+                    fprintf(outputFile, "	LDY #%d\n", (int) (atof(statement[6]) * 16.0));
+                fprintf(outputFile, "	LDA %s\n", statement[4]);
+                fprintf(outputFile, "	LDX ");
                 printfrac(statement[4]);
                 jsrbank1("Add88to44");
             } else if ((fixpoint1 == 4) && (fixpoint2 == 4) && (fixpoint3 == 12)) {
-                printf("	CLC\n");
-                printf("	LDA %s\n", statement[4]);
-                printf("	ADC #%d\n", (int) (atof(statement[6]) * 16.0));
+                fprintf(outputFile, "	CLC\n");
+                fprintf(outputFile, "	LDA %s\n", statement[4]);
+                fprintf(outputFile, "	ADC #%d\n", (int) (atof(statement[6]) * 16.0));
             } else if ((fixpoint1 == 4) && (fixpoint2 == 12) && (fixpoint3 == 4)) {
-                printf("	CLC\n");
-                printf("	LDA %s\n", statement[6]);
-                printf("	ADC #%d\n", (int) (atof(statement[4]) * 16.0));
+                fprintf(outputFile, "	CLC\n");
+                fprintf(outputFile, "	LDA %s\n", statement[6]);
+                fprintf(outputFile, "	ADC #%d\n", (int) (atof(statement[4]) * 16.0));
             } else        // this needs work - 44+8+44 and probably others are screwy
             {
                 if (fixpoint2 == 4)
-                    printf("	LDA %s\n", statement[4]);
+                    fprintf(outputFile, "	LDA %s\n", statement[4]);
                 if ((fixpoint3 == 4) && (fixpoint2 == 0)) {
-                    printf("	LDA ");    // this LDA might be superfluous
+                    fprintf(outputFile, "	LDA ");    // this LDA might be superfluous
                     printimmed(statement[4]);
-                    printf("%s\n", statement[4]);
+                    fprintf(outputFile, "%s\n", statement[4]);
                 }
                 displayoperation("+CLC\n	ADC", statement[6], index & 4);
             }
 //    }
         } else if (statement[5][0] == '-') {
             if ((fixpoint1 == 8) && ((fixpoint2 & 8) == 8) && ((fixpoint3 & 8) == 8)) {            //8.8=8.8-8.8
-                printf("	LDA ");
+                fprintf(outputFile, "	LDA ");
                 printfrac(statement[4]);
-                printf("	SEC \n");
-                printf("	SBC ");
+                fprintf(outputFile, "	SEC \n");
+                fprintf(outputFile, "	SBC ");
                 printfrac(statement[6]);
-                printf("	STA ");
+                fprintf(outputFile, "	STA ");
                 printfrac(statement[2]);
-                printf("	LDA ");
+                fprintf(outputFile, "	LDA ");
                 printimmed(statement[4]);
-                printf("%s\n", statement[4]);
-                printf("	SBC ");
+                fprintf(outputFile, "%s\n", statement[4]);
+                fprintf(outputFile, "	SBC ");
                 printimmed(statement[6]);
-                printf("%s\n", statement[6]);
+                fprintf(outputFile, "%s\n", statement[6]);
             } else if ((fixpoint1 == 8) && ((fixpoint2 & 8) == 8) && (fixpoint3 == 4)) {
-                printf("	LDY %s\n", statement[6]);
-                printf("	LDX ");
+                fprintf(outputFile, "	LDY %s\n", statement[6]);
+                fprintf(outputFile, "	LDX ");
                 printfrac(statement[4]);
-                printf("	LDA ");
+                fprintf(outputFile, "	LDA ");
                 printimmed(statement[4]);
-                printf("%s\n", statement[4]);
+                fprintf(outputFile, "%s\n", statement[4]);
                 jsrbank1("Sub44from88");
-                printf("	STX ");
+                fprintf(outputFile, "	STX ");
                 printfrac(statement[2]);
             } else if ((fixpoint1 == 4) && (fixpoint2 == 8) && ((fixpoint3 & 4) == 4)) {
                 if (fixpoint3 == 4)
-                    printf("	LDY %s\n", statement[6]);
+                    fprintf(outputFile, "	LDY %s\n", statement[6]);
                 else
-                    printf("	LDY #%d\n", (int) (atof(statement[6]) * 16.0));
-                printf("	LDA %s\n", statement[4]);
-                printf("	LDX ");
+                    fprintf(outputFile, "	LDY #%d\n", (int) (atof(statement[6]) * 16.0));
+                fprintf(outputFile, "	LDA %s\n", statement[4]);
+                fprintf(outputFile, "	LDX ");
                 printfrac(statement[4]);
                 jsrbank1("Sub88from44");
             } else if ((fixpoint1 == 4) && (fixpoint2 == 4) && (fixpoint3 == 12)) {
-                printf("	SEC\n");
-                printf("	LDA %s\n", statement[4]);
-                printf("	SBC #%d\n", (int) (atof(statement[6]) * 16.0));
+                fprintf(outputFile, "	SEC\n");
+                fprintf(outputFile, "	LDA %s\n", statement[4]);
+                fprintf(outputFile, "	SBC #%d\n", (int) (atof(statement[6]) * 16.0));
             } else if ((fixpoint1 == 4) && (fixpoint2 == 12) && (fixpoint3 == 4)) {
-                printf("	SEC\n");
-                printf("	LDA #%d\n", (int) (atof(statement[4]) * 16.0));
-                printf("	SBC %s\n", statement[6]);
+                fprintf(outputFile, "	SEC\n");
+                fprintf(outputFile, "	LDA #%d\n", (int) (atof(statement[4]) * 16.0));
+                fprintf(outputFile, "	SBC %s\n", statement[6]);
             } else {
                 if (fixpoint2 == 4)
-                    printf("	LDA %s\n", statement[4]);
+                    fprintf(outputFile, "	LDA %s\n", statement[4]);
                 if ((fixpoint3 == 4) && (fixpoint2 == 0))
-                    printf("	LDA #%s\n", statement[4]);
+                    fprintf(outputFile, "	LDA #%s\n", statement[4]);
                 displayoperation("-SEC\n	SBC", statement[6], index & 4);
             }
         } else if (statement[5][0] == '&') {
             if (fixpoint2 == 4)
-                printf("	LDA %s\n", statement[4]);
+                fprintf(outputFile, "	LDA %s\n", statement[4]);
             displayoperation("&AND", statement[6], index & 4);
         } else if (statement[5][0] == '^') {
             if (fixpoint2 == 4)
-                printf("	LDA %s\n", statement[4]);
+                fprintf(outputFile, "	LDA %s\n", statement[4]);
             displayoperation("^EOR", statement[6], index & 4);
         } else if (statement[5][0] == '|') {
             if (fixpoint2 == 4)
-                printf("	LDA %s\n", statement[4]);
+                fprintf(outputFile, "	LDA %s\n", statement[4]);
             displayoperation("|ORA", statement[6], index & 4);
         } else if (statement[5][0] == '*') {
             if (isimmed(statement[4]) && !isimmed(statement[6]) && checkmul(atoi(statement[4]))) {
@@ -4389,7 +4391,7 @@ void dolet(char **cstatement) {
                 strcpy(statement[6], operandcopy);
             }
             if (fixpoint2 == 4)
-                printf("	LDA %s\n", statement[4]);
+                fprintf(outputFile, "	LDA %s\n", statement[4]);
             if ((!isimmed(statement[6])) || (!checkmul(atoi(statement[6])))) {
                 displayoperation("*LDY", statement[6], index & 4);
                 if (statement[5][1] == '*')
@@ -4403,7 +4405,7 @@ void dolet(char **cstatement) {
 
         } else if (statement[5][0] == '/') {
             if (fixpoint2 == 4)
-                printf("	LDA %s\n", statement[4]);
+                fprintf(outputFile, "	LDA %s\n", statement[4]);
             if ((!isimmed(statement[6])) || (!checkdiv(atoi(statement[6])))) {
                 displayoperation("/LDY", statement[6], index & 4);
                 if (statement[5][1] == '/')
@@ -4435,69 +4437,69 @@ void dolet(char **cstatement) {
         // check for fixed point stuff here
         // bugfix: forgot the LDA (?) did I do this correctly???
         if ((fixpoint1 == 4) && (fixpoint2 == 0)) {
-            printf("	LDA ");
+            fprintf(outputFile, "	LDA ");
             printimmed(statement[4]);
-            printf("%s\n", statement[4]);
-            printf("  ASL\n");
-            printf("  ASL\n");
-            printf("  ASL\n");
-            printf("  ASL\n");
+            fprintf(outputFile, "%s\n", statement[4]);
+            fprintf(outputFile, "  ASL\n");
+            fprintf(outputFile, "  ASL\n");
+            fprintf(outputFile, "  ASL\n");
+            fprintf(outputFile, "  ASL\n");
         } else if ((fixpoint1 == 0) && (fixpoint2 == 4)) {
-            printf("	LDA ");
+            fprintf(outputFile, "	LDA ");
             printimmed(statement[4]);
-            printf("%s\n", statement[4]);
-            printf("  LSR\n");
-            printf("  LSR\n");
-            printf("  LSR\n");
-            printf("  LSR\n");
+            fprintf(outputFile, "%s\n", statement[4]);
+            fprintf(outputFile, "  LSR\n");
+            fprintf(outputFile, "  LSR\n");
+            fprintf(outputFile, "  LSR\n");
+            fprintf(outputFile, "  LSR\n");
         } else if ((fixpoint1 == 4) && (fixpoint2 == 8)) {
-            printf("	LDA ");
+            fprintf(outputFile, "	LDA ");
             printimmed(statement[4]);
-            printf("%s\n", statement[4]);
-            printf("  LDX ");
+            fprintf(outputFile, "%s\n", statement[4]);
+            fprintf(outputFile, "  LDX ");
             printfrac(statement[4]);
 // note: this shouldn't be changed to jsr(); (why???)
-            printf(" jsr Assign88to44");
+            fprintf(outputFile, " jsr Assign88to44");
             if (bs)
-                printf("bs");
-            printf("\n");
+                fprintf(outputFile, "bs");
+            fprintf(outputFile, "\n");
         } else if ((fixpoint1 == 8) && (fixpoint2 == 4)) {
 // note: this shouldn't be changed to jsr();
-            printf("	LDA ");
+            fprintf(outputFile, "	LDA ");
             printimmed(statement[4]);
-            printf("%s\n", statement[4]);
-            printf("  JSR Assign44to88");
+            fprintf(outputFile, "%s\n", statement[4]);
+            fprintf(outputFile, "  JSR Assign44to88");
             if (bs)
-                printf("bs");
-            printf("\n");
-            printf("  STX ");
+                fprintf(outputFile, "bs");
+            fprintf(outputFile, "\n");
+            fprintf(outputFile, "  STX ");
             printfrac(statement[2]);
         } else if ((fixpoint1 == 8) && ((fixpoint2 & 8) == 8)) {
-            printf("	LDX ");
+            fprintf(outputFile, "	LDX ");
             printfrac(statement[4]);
-            printf("	STX ");
+            fprintf(outputFile, "	STX ");
             printfrac(statement[2]);
-            printf("	LDA ");
+            fprintf(outputFile, "	LDA ");
             printimmed(statement[4]);
-            printf("%s\n", statement[4]);
+            fprintf(outputFile, "%s\n", statement[4]);
         } else if ((fixpoint1 == 4) && ((fixpoint2 & 4) == 4)) {
             if (fixpoint2 == 4)
-                printf("	LDA %s\n", statement[4]);
+                fprintf(outputFile, "	LDA %s\n", statement[4]);
             else
-                printf("	LDA #%d\n", (int) (atof(statement[4]) * 16));
+                fprintf(outputFile, "	LDA #%d\n", (int) (atof(statement[4]) * 16));
         } else if ((fixpoint1 == 8) && (fixpoint2 == 0)) {            // should handle 8.8=number w/o point or int var
-            printf("	LDA #0\n");
-            printf("	STA ");
+            fprintf(outputFile, "	LDA #0\n");
+            fprintf(outputFile, "	STA ");
             printfrac(statement[2]);
-            printf("	LDA ");
+            fprintf(outputFile, "	LDA ");
             printimmed(statement[4]);
-            printf("%s\n", statement[4]);
+            fprintf(outputFile, "%s\n", statement[4]);
         }
     }
     if (index & 1)
         loadindex(&getindex0[0]);
     if (strncmp(statement[2], "Areg\0", 4)) {
-        printf("	STA ");
+        fprintf(outputFile, "	STA ");
         printindex(statement[2], index & 1);
     }
     free(deallocstatement);
@@ -4511,26 +4513,26 @@ void dogoto(char **statement) {
         if ((statement[3][5] >= '0') && (statement[3][5] <= '9'))
             anotherbank = (int) (statement[3][5]) - 38;
     } else {
-        printf(" jmp .%s\n", statement[2]);
+        fprintf(outputFile, " jmp .%s\n", statement[2]);
         return;
     }
 
 // if here, we're jmp'ing to another bank
 // we need to switch banks
-    printf(" sta temp7\n");
+    fprintf(outputFile, " sta temp7\n");
 // next we must push the place to jmp to
-    printf(" lda #>(.%s-1)\n", statement[2]);
-    printf(" pha\n");
-    printf(" lda #<(.%s-1)\n", statement[2]);
-    printf(" pha\n");
+    fprintf(outputFile, " lda #>(.%s-1)\n", statement[2]);
+    fprintf(outputFile, " pha\n");
+    fprintf(outputFile, " lda #<(.%s-1)\n", statement[2]);
+    fprintf(outputFile, " pha\n");
 // now store regs on stack
-    printf(" lda temp7\n");
-    printf(" pha\n");
-    printf(" txa\n");
-    printf(" pha\n");
+    fprintf(outputFile, " lda temp7\n");
+    fprintf(outputFile, " pha\n");
+    fprintf(outputFile, " txa\n");
+    fprintf(outputFile, " pha\n");
 // select bank to switch to
-    printf(" ldx #%d\n", anotherbank);
-    printf(" jmp BS_jsr\n");    // also works for jmps
+    fprintf(outputFile, " ldx #%d\n", anotherbank);
+    fprintf(outputFile, " jmp BS_jsr\n");    // also works for jmps
 }
 
 void gosub(char **statement) {
@@ -4545,43 +4547,43 @@ void gosub(char **statement) {
         if ((statement[3][5] >= '0') && (statement[3][5] <= '9'))
             anotherbank = (int) (statement[3][5]) - 38;
     } else {
-        printf(" jsr .%s\n", statement[2]);
+        fprintf(outputFile, " jsr .%s\n", statement[2]);
         return;
     }
 
 // if here, we're jsr'ing to another bank
 // we need to switch banks
-    printf(" sta temp7\n");
+    fprintf(outputFile, " sta temp7\n");
 // first create virtual return address
 
     // if it's 64k banks, store the bank directly in the high nibble
     if (bs == 64)
-        printf(" lda #(((>(ret_point%d-1)) & $0F) | $%1x0) \n", ++numjsrs, bank - 1);
+        fprintf(outputFile, " lda #(((>(ret_point%d-1)) & $0F) | $%1x0) \n", ++numjsrs, bank - 1);
     else
-        printf(" lda #>(ret_point%d-1)\n", ++numjsrs);
+        fprintf(outputFile, " lda #>(ret_point%d-1)\n", ++numjsrs);
 
-    printf(" pha\n");
+    fprintf(outputFile, " pha\n");
 
-    printf(" lda #<(ret_point%d-1)\n", numjsrs);
-    printf(" pha\n");
+    fprintf(outputFile, " lda #<(ret_point%d-1)\n", numjsrs);
+    fprintf(outputFile, " pha\n");
 
 // next we must push the place to jsr to
-    printf(" lda #>(.%s-1)\n", statement[2]);
-    printf(" pha\n");
+    fprintf(outputFile, " lda #>(.%s-1)\n", statement[2]);
+    fprintf(outputFile, " pha\n");
 
-    printf(" lda #<(.%s-1)\n", statement[2]);
-    printf(" pha\n");
+    fprintf(outputFile, " lda #<(.%s-1)\n", statement[2]);
+    fprintf(outputFile, " pha\n");
 
 // now store regs on stack
-    printf(" lda temp7\n");
-    printf(" pha\n");
-    printf(" txa\n");
-    printf(" pha\n");
+    fprintf(outputFile, " lda temp7\n");
+    fprintf(outputFile, " pha\n");
+    fprintf(outputFile, " txa\n");
+    fprintf(outputFile, " pha\n");
 
 // select bank to switch to
-    printf(" ldx #%d\n", anotherbank);
-    printf(" jmp BS_jsr\n");
-    printf("ret_point%d\n", numjsrs);
+    fprintf(outputFile, " ldx #%d\n", anotherbank);
+    fprintf(outputFile, " jmp BS_jsr\n");
+    fprintf(outputFile, "ret_point%d\n", numjsrs);
 }
 
 void set(char **statement) {
@@ -4671,17 +4673,17 @@ void set(char **statement) {
             if (!strncmp(statement[i], "readpaddle\0", 10)) {
                 strcpy(redefined_variables[numredefvars++], "readpaddle = 1");
                 if (bs == 28) {
-                    printf("DPC_kernel_options = INPT0+$40\n");
+                    fprintf(outputFile, "DPC_kernel_options = INPT0+$40\n");
                     return;
                 } else
                     kernel_options |= 1;
             } else if (!strncmp(statement[i], "collision\0", 9)) {
                 if (bs == 28) {
-                    printf("DPC_kernel_options = ");
+                    fprintf(outputFile, "DPC_kernel_options = ");
                     if (check_colls(statement[i]) == 7)
-                        printf("+$40\n");
+                        fprintf(outputFile, "+$40\n");
                     else
-                        printf("\n");
+                        fprintf(outputFile, "\n");
                     return;
                 }
             } else if (!strncmp(statement[i], "player1colors\0", 13)) {
@@ -4773,8 +4775,8 @@ void rem(char **statement) {
 }
 
 void dopop() {
-    printf("	pla\n");
-    printf("	pla\n");
+    fprintf(outputFile, "	pla\n");
+    fprintf(outputFile, "	pla\n");
 }
 
 void hotspotcheck(char *linenumber) {
@@ -4786,21 +4788,21 @@ void hotspotcheck(char *linenumber) {
         printf
                 ("   echo \"WARNING: branch near the end of bank %d may accidentally trigger a bankswitch. Reposition code there if bad things happen.\"\n",
                  bank);
-        printf(" endif\n");
+        fprintf(outputFile, " endif\n");
     }
 }
 
 void bmi(char *linenumber) {
     removeCR(linenumber);
     if (smartbranching) {
-        printf(" if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bmi .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bmi .%s\n", linenumber, linenumber, linenumber);
         // branches might be allowed as below - check carefully to make sure!
-        // printf(" if ((* - .%s) < 127) && ((* - .%s) > -129)\n    bmi .%s\n",linenumber,linenumber,linenumber);
-        printf(" else\n	bpl .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        printf(".%dskip%s\n", branchtargetnumber++, linenumber);
-        printf(" endif\n");
+        // fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -129)\n    bmi .%s\n",linenumber,linenumber,linenumber);
+        fprintf(outputFile, " else\n	bpl .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
     } else {
-        printf("	bmi .%s\n", linenumber);
+        fprintf(outputFile, "	bmi .%s\n", linenumber);
         hotspotcheck(linenumber);
     }
 }
@@ -4808,12 +4810,12 @@ void bmi(char *linenumber) {
 void bpl(char *linenumber) {
     removeCR(linenumber);
     if (smartbranching) {
-        printf(" if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bpl .%s\n", linenumber, linenumber, linenumber);
-        printf(" else\n	bmi .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        printf(".%dskip%s\n", branchtargetnumber++, linenumber);
-        printf(" endif\n");
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bpl .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	bmi .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
     } else {
-        printf("	bpl .%s\n", linenumber);
+        fprintf(outputFile, "	bpl .%s\n", linenumber);
         hotspotcheck(linenumber);
     }
 }
@@ -4821,12 +4823,12 @@ void bpl(char *linenumber) {
 void bne(char *linenumber) {
     removeCR(linenumber);
     if (smartbranching) {
-        printf(" if ((* - .%s) < 127) && ((* - .%s) > -128)\n	BNE .%s\n", linenumber, linenumber, linenumber);
-        printf(" else\n	beq .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        printf(".%dskip%s\n", branchtargetnumber++, linenumber);
-        printf(" endif\n");
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	BNE .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	beq .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
     } else {
-        printf("	bne .%s\n", linenumber);
+        fprintf(outputFile, "	bne .%s\n", linenumber);
         hotspotcheck(linenumber);
     }
 }
@@ -4834,12 +4836,12 @@ void bne(char *linenumber) {
 void beq(char *linenumber) {
     removeCR(linenumber);
     if (smartbranching) {
-        printf(" if ((* - .%s) < 127) && ((* - .%s) > -128)\n	BEQ .%s\n", linenumber, linenumber, linenumber);
-        printf(" else\n	bne .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        printf(".%dskip%s\n", branchtargetnumber++, linenumber);
-        printf(" endif\n");
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	BEQ .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	bne .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
     } else {
-        printf("	beq .%s\n", linenumber);
+        fprintf(outputFile, "	beq .%s\n", linenumber);
         hotspotcheck(linenumber);
     }
 }
@@ -4847,12 +4849,12 @@ void beq(char *linenumber) {
 void bcc(char *linenumber) {
     removeCR(linenumber);
     if (smartbranching) {
-        printf(" if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bcc .%s\n", linenumber, linenumber, linenumber);
-        printf(" else\n	bcs .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        printf(".%dskip%s\n", branchtargetnumber++, linenumber);
-        printf(" endif\n");
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bcc .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	bcs .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
     } else {
-        printf("	bcc .%s\n", linenumber);
+        fprintf(outputFile, "	bcc .%s\n", linenumber);
         hotspotcheck(linenumber);
     }
 
@@ -4861,12 +4863,12 @@ void bcc(char *linenumber) {
 void bcs(char *linenumber) {
     removeCR(linenumber);
     if (smartbranching) {
-        printf(" if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bcs .%s\n", linenumber, linenumber, linenumber);
-        printf(" else\n	bcc .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        printf(".%dskip%s\n", branchtargetnumber++, linenumber);
-        printf(" endif\n");
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bcs .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	bcc .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
     } else {
-        printf("	bcs .%s\n", linenumber);
+        fprintf(outputFile, "	bcs .%s\n", linenumber);
         hotspotcheck(linenumber);
     }
 }
@@ -4874,12 +4876,12 @@ void bcs(char *linenumber) {
 void bvc(char *linenumber) {
     removeCR(linenumber);
     if (smartbranching) {
-        printf(" if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bvc .%s\n", linenumber, linenumber, linenumber);
-        printf(" else\n	bvs .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        printf(".%dskip%s\n", branchtargetnumber++, linenumber);
-        printf(" endif\n");
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bvc .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	bvs .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
     } else {
-        printf("	bvc .%s\n", linenumber);
+        fprintf(outputFile, "	bvc .%s\n", linenumber);
         hotspotcheck(linenumber);
     }
 }
@@ -4887,12 +4889,12 @@ void bvc(char *linenumber) {
 void bvs(char *linenumber) {
     removeCR(linenumber);
     if (smartbranching) {
-        printf(" if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bvs .%s\n", linenumber, linenumber, linenumber);
-        printf(" else\n	bvc .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        printf(".%dskip%s\n", branchtargetnumber++, linenumber);
-        printf(" endif\n");
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bvs .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	bvc .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
     } else {
-        printf("	bvs .%s\n", linenumber);
+        fprintf(outputFile, "	bvs .%s\n", linenumber);
         hotspotcheck(linenumber);
     }
 }
@@ -4912,7 +4914,7 @@ void prerror(char *myerror) {
 int printimmed(char *value) {
     int immed = isimmed(value);
     if (immed)
-        printf("#");
+        fprintf(outputFile, "#");
     return immed;
 }
 

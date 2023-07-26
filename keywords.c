@@ -404,5 +404,5 @@ void keywords(char **cstatement) {
 
     }
     if (foundelse)
-        printf(".skipelse%d\n", numelses++);
+        fprintf(getOutputFile(), ".skipelse%d\n", numelses++);
 }

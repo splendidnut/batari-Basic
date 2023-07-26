@@ -41,7 +41,7 @@ void processDefs(char *code) {
         }
         defr[defi][j] = '\0';
         removeCR(defr[defi]);
-        printf(";.%s.%s.\n", def[defi], defr[defi]);
+        fprintf(getOutputFile(), ";.%s.%s.\n", def[defi], defr[defi]);
         defi++;
     } else if (defi) {
         for (i = 0; i < defi; ++i) {
@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
 
     FILE *outFile = fopen("bB.asm", "w");
     use_output_file(outFile);
-    printf("game\n");        // label for start of game
+    fprintf(outFile, "game\n");        // label for start of game
 
     init_includes(path);
 
@@ -158,7 +158,7 @@ int main(int argc, char *argv[]) {
         }
 
         if (strncmp(statement[0], "end\0", 3)!=0)
-            printf(".%s ; %s\n", statement[0], displaycode);
+            fprintf(outFile, ".%s ; %s\n", statement[0], displaycode);
         else
             doend();
 

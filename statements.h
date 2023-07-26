@@ -21,6 +21,7 @@ extern void init_statement_processor();
 // functions to process source file and output file
 extern void use_source_file(FILE *sourceFileToUse);
 extern void use_output_file(FILE *outputFileToUse);
+extern FILE *getOutputFile();
 extern bool read_source_line(char *data);
 extern void trim_string(char *data, bool addEol);
 
