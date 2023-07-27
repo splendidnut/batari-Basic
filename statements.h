@@ -15,6 +15,11 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+// share sprite data collection buffer with other modules
+enum { SPRITE_DATA_ENTRY_SIZE = 50,
+        SPRITE_DATA_ENTRY_COUNT = 5000};
+extern char sprite_data[SPRITE_DATA_ENTRY_COUNT][SPRITE_DATA_ENTRY_SIZE];
+
 // initialization function
 extern void init_statement_processor();
 
@@ -30,6 +35,9 @@ extern void print_statement_breakdown(char **stmtList);
 
 // functions for compiler output
 extern void write_footer();
+
+// shared processing functions
+extern void process_gfx_data(const char *label, const char *dataTypeName);
 
 // statement processing functions
 void doextra(char *);

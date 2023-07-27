@@ -80,10 +80,19 @@ void keywords(char **cstatement) {
                 sprintf(cstatement[k + 3], "then%d", ors++);
                 strcpy(cstatement[k + 4], "if");
             } else if (!strncmp(cstatement[k + 5], "&&\0", 2)) {
-
                 shiftdata(cstatement, k + 5);
                 sprintf(cstatement[k + 5], "then%d", ors++);
                 strcpy(cstatement[k + 6], "if");
+
+            } else if (!strncmp(cstatement[k + 7], "&&\0", 2)) {        // Handle && after collision check
+                shiftdata(cstatement, k + 7);
+                sprintf(cstatement[k + 7], "then%d", ors++);
+                strcpy(cstatement[k + 8], "if");
+            } else if (!strncmp(cstatement[k + 8], "&&\0", 2)) {        // Handle && after collision check
+                shiftdata(cstatement, k + 8);
+                sprintf(cstatement[k + 8], "then%d", ors++);
+                strcpy(cstatement[k + 9], "if");
+
             } else if (!strncmp(cstatement[k + 3], "||\0", 2)) {
                 if (!strncmp(cstatement[k + 5], ">\0", 2) && (!strncmp(cstatement[k + 1], "if\0", 2))
                     && (swaptest(cstatement[k + 7]))) {
@@ -315,44 +324,16 @@ void keywords(char **cstatement) {
             else if (!strncmp(command, "vblank\0", 7))
                 vblank();
 
-            else if ((!strncasecmp(command, "pfcolors:\0", 9)) || (!strncasecmp(command, "pfheights:\0", 9)))
+            else if ((!strncasecmp(command, "pfcolors\0", 9)) || (!strncasecmp(command, "pfheights\0", 9))   && param[0] == ':')
                 playfieldcolorandheight(statement);
-            else if (!strncasecmp(command, "bkcolors:\0", 9))
+            else if (!strncasecmp(command, "bkcolors\0", 9)  && param[0] == ':')
                 bkcolors(statement);
             else if (!strncmp(command, "playfield\0", 10)  && param[0] == ':')
                 playfield(statement);
-            else if (!strncmp(command, "scorecolors:\0", 12))
+            else if (!strncmp(command, "scorecolors\0", 12)  && param[0] == ':')
                 scorecolors(statement);
             else if (!strncmp(command, "lives\0", 6) && param[0] == ':')
                 lives(statement);
-            else if ((!strncmp(command, "player0:\0", 8))
-                     || (!strncmp(command, "player1:\0", 8))
-                     || (!strncmp(command, "player2:\0", 8))
-                     || (!strncmp(command, "player3:\0", 8))
-                     || (!strncmp(command, "player4:\0", 8))
-                     || (!strncmp(command, "player5:\0", 8))
-                     || (!strncmp(command, "player6:\0", 8))
-                     || (!strncmp(command, "player7:\0", 8))
-                     || (!strncmp(command, "player8:\0", 8))
-                     || (!strncmp(command, "player9:\0", 8))
-                     || (!strncmp(command, "player1-\0", 8))
-                     || (!strncmp(command, "player2-\0", 8))
-                     || (!strncmp(command, "player3-\0", 8))
-                     || (!strncmp(command, "player4-\0", 8))
-                     || (!strncmp(command, "player5-\0", 8))
-                     || (!strncmp(command, "player6-\0", 8))
-                     || (!strncmp(command, "player7-\0", 8))
-                     || (!strncmp(command, "player8-\0", 8))
-                     || (!strncmp(command, "player0color:\0", 13))
-                     || (!strncmp(command, "player1color:\0", 13))
-                     || (!strncmp(command, "player2color:\0", 13))
-                     || (!strncmp(command, "player3color:\0", 13))
-                     || (!strncmp(command, "player4color:\0", 13))
-                     || (!strncmp(command, "player5color:\0", 13))
-                     || (!strncmp(command, "player6color:\0", 13))
-                     || (!strncmp(command, "player7color:\0", 13))
-                     || (!strncmp(command, "player8color:\0", 13)) || (!strncmp(command, "player9color:\0", 13)))
-                player(statement);
             else if (!strncmp(param, "=\0", 1))
                 dolet(statement);
             else if (!strncmp(command, "let\0", 4))
@@ -371,18 +352,30 @@ void keywords(char **cstatement) {
                 callmacro(statement);
             else if (!strncmp(command, "extra\0", 5))
                 doextra(command);
+
             else {
-                //sadly, a kludge for complex statements followed by "then label"
-                int lastc = strlen(statement[0]) - 1;
-                if ((lastc > 3) && (((statement[0][lastc - 4] >= '0') && (statement[0][lastc - 4] <= '9')) &&
-                                    (statement[0][lastc - 3] == 't') &&
-                                    (statement[0][lastc - 2] == 'h') &&
-                                    (statement[0][lastc - 1] == 'e') && (statement[0][lastc - 0] == 'n')))
-                    return;
-                sprintf(errorcode, "Error: Unknown keyword: %s\n", command);
-                prerror(&errorcode[0]);
-                print_statement_breakdown(statement);
-                exit(1);
+                // handle the more complicated player graphics/color/range label processing
+                bool isPlayer = (!strncmp(command, "player", 6));
+                bool isSimpleLabel = (param[0] == ':');
+                bool isRangeLabel = ((param[0] == '-') && (statement[4][0] == ':'));
+
+                if (isPlayer && (isSimpleLabel || isRangeLabel))
+
+                    player(statement);
+
+                else {
+                    //sadly, a kludge for complex statements followed by "then label"
+                    int lastc = strlen(statement[0]) - 1;
+                    if ((lastc > 3) && (((statement[0][lastc - 4] >= '0') && (statement[0][lastc - 4] <= '9')) &&
+                                        (statement[0][lastc - 3] == 't') &&
+                                        (statement[0][lastc - 2] == 'h') &&
+                                        (statement[0][lastc - 1] == 'e') && (statement[0][lastc - 0] == 'n')))
+                        return;
+                    sprintf(errorcode, "Error: Unknown keyword: %s\n", command);
+                    prerror(&errorcode[0]);
+                    print_statement_breakdown(statement);
+                    exit(1);
+                }
             }
         }
         // see if there is a colon

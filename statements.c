@@ -19,6 +19,7 @@ int decimal = 0;
 
 char redefined_variables[500][100];
 char constants[MAXCONSTANTS][100];
+char sprite_data[SPRITE_DATA_ENTRY_COUNT][SPRITE_DATA_ENTRY_SIZE];
 
 int bs;
 int bank;
@@ -36,7 +37,6 @@ int extra;
 int extralabel;
 int extraactive;
 int macroactive;
-char sprite_data[5000][50];
 int sprite_index;
 int playfield_index[50];
 int playfield_number;
@@ -239,31 +239,22 @@ void pfclear(char **statement) {
     jsr(statement[1]);
 }
 
-// TODO: move to gencode_dpcplus when possible
-void bkcolors_DPCPlus(char **statement) {
+/**
+ * Process a DATA chunk that's specifically for graphics:  sprites, playfield, etc.
+ */
+void process_gfx_data(const char *label, const char *dataTypeName) {
     char data[200];
-    char label[200];
     int l = 0;
-
-    sprintf(label, "backgroundcolor%s\n", statement[0]);
-    removeCR(label);
-    fprintf(outputFile, "	LDA #<BKCOLS\n");
-    fprintf(outputFile, "	STA DF0LOW\n");
-    fprintf(outputFile, "	LDA #(>BKCOLS) & $0F\n");
-    fprintf(outputFile, "	STA DF0HI\n");
-    fprintf(outputFile, "	LDA #<%s\n", label);
-    fprintf(outputFile, "	STA PARAMETER\n");
-    fprintf(outputFile, "	LDA #((>%s) & $0f) | (((>%s) / 2) & $70)\n", label, label);    // DPC+
-    fprintf(outputFile, "	STA PARAMETER\n");
-    fprintf(outputFile, "	LDA #0\n");
-    fprintf(outputFile, "	STA PARAMETER\n");
 
     sprintf(sprite_data[sprite_index++], "%s\n", label);
     while (1) {
         if ((read_source_line(data)
              || ((data[0] < (unsigned char) 0x3A) && (data[0] > (unsigned char) 0x2F))) && (data[0] != 'e')) {
 
-            prerror("Error: Missing \"end\" keyword at end of bkcolors declaration\n");
+            // error message
+            char errMissingEnd[200];
+            sprintf(errMissingEnd, "Error: Missing \"end\" keyword at end of %s declaration\n", dataTypeName);
+            prerror(errMissingEnd);
             exit(1);
         }
         line++;
@@ -272,13 +263,14 @@ void bkcolors_DPCPlus(char **statement) {
         sprintf(sprite_data[sprite_index++], "	.byte %s", data);
         l++;
     }
-    if (l > 255)
-        prerror("Error: too much data in bkcolors declaration\n");
-    fprintf(outputFile, "	LDA #%d\n", l);
-    fprintf(outputFile, "	STA PARAMETER\n");
-    fprintf(outputFile, "	LDA #1\n");
-    fprintf(outputFile, "	STA CALLFUNCTION\n");
+    if (l > 255) {
+        char errTooMuchData[200];
+        sprintf(errTooMuchData, "Error: too much data in %s declaration\n", dataTypeName);
+        prerror(errTooMuchData);
+    }
 }
+
+
 
 void bkcolors(char **statement) {
     if (multisprite == 2) {
@@ -289,6 +281,9 @@ void bkcolors(char **statement) {
         exit(1);
     }
 }
+
+
+
 
 void playfieldcolorandheight(char **statement) {
     char data[200];
@@ -395,40 +390,8 @@ void playfieldcolorandheight(char **statement) {
     } else            // has to be pfcolors
     {
         if (multisprite == 2) {
-            l = 0;
-            sprintf(label, "playfieldcolor%s\n", statement[0]);
-            removeCR(label);
-            fprintf(outputFile, "	LDA #<PFCOLS\n");
-            fprintf(outputFile, "	STA DF0LOW\n");
-            fprintf(outputFile, "	LDA #(>PFCOLS) & $0F\n");
-            fprintf(outputFile, "	STA DF0HI\n");
-            fprintf(outputFile, "	LDA #<%s\n", label);
-            fprintf(outputFile, "	STA PARAMETER\n");
-            fprintf(outputFile, "	LDA #((>%s) & $0f) | (((>%s) / 2) & $70)\n", label, label);    // DPC+
-            fprintf(outputFile, "	STA PARAMETER\n");
-            fprintf(outputFile, "	LDA #0\n");
-            fprintf(outputFile, "	STA PARAMETER\n");
+            playfieldcolorandheight_DPCPlus(statement);
 
-            sprintf(sprite_data[sprite_index++], "%s\n", label);
-            while (1) {
-                if ((read_source_line(data)
-                     || ((data[0] < (unsigned char) 0x3A) && (data[0] > (unsigned char) 0x2F))) && (data[0] != 'e')) {
-
-                    prerror("Error: Missing \"end\" keyword at end of pfcolor declaration\n");
-                    exit(1);
-                }
-                line++;
-                if (!strncmp(data, "end\0", 3))
-                    break;
-                sprintf(sprite_data[sprite_index++], "	.byte %s", data);
-                l++;
-            }
-            if (l > 255)
-                prerror("Error: too much data in pfcolor declaration\n");
-            fprintf(outputFile, "	LDA #%d\n", l);
-            fprintf(outputFile, "	STA PARAMETER\n");
-            fprintf(outputFile, "	LDA #1\n");
-            fprintf(outputFile, "	STA CALLFUNCTION\n");
             return;        // get out
         }
         if ((kernel_options & 48) == 16) {
@@ -2535,44 +2498,66 @@ void doend() {
         prerror("extraneous end statement found");
 }
 
+/**
+ * Process player graphics / player color data blocks
+ *
+ * Processes the following types of data statements:
+ *           player0:
+ *           player1color:
+ *           player1-9:
+ *           player1-9color:
+ *
+ * @param statement
+ */
 void player(char **statement) {
     int height = 0, i = 0;    //calculating sprite height
     int doingcolor = 0;        //doing player colors?
     char label[200];
     char j;
     char data[200];
-    char pl = statement[1][6];
     int heightrecord;
+
+    //--- process parameters and figure out which type of statement this is
+    char playerNum = statement[1][6];      // player number
+    char *param = statement[2];     //-- will be ':' or '-'
+    char *param2 = statement[3];    //-- will be secondary value for range
+    bool isSimpleLabel = (param[0] == ':');
+    bool isRangeLabel = ((param[0] == '-') && (statement[4][0] == ':'));
+    bool isMultiplePlayers = (isRangeLabel) && (playerNum != '0');
+    char rangeEnd   = param2[0];
+
     if (statement[1][7] == 'c')
         doingcolor = 1;
-    if ((statement[1][7] == '-') && (statement[1][9] == 'c'))
+    if (isRangeLabel && (param2[1] == 'c')) //-- if secondary parameter has 'color' after it
         doingcolor = 1;
-    if (!doingcolor)
-        sprintf(label, "player%s_%c\n", statement[0], pl);
-    else
-        sprintf(label, "playercolor%s_%c\n", statement[0], pl);
 
+    // create labels for asm code
+    if (!doingcolor)
+        sprintf(label, "player%s_%c\n", statement[0], playerNum);
+    else
+        sprintf(label, "playercolor%s_%c\n", statement[0], playerNum);
     removeCR(label);
 
     if (multisprite == 2) {
         // handle DPC+ version
-        if (pl != '0') {
-            fprintf(outputFile, "	lda #<(playerpointers+%d)\n", (pl - 49) * 2 + 18 * doingcolor);
+        if (playerNum != '0') {
+            fprintf(outputFile, "	lda #<(playerpointers+%d)\n", (playerNum - 49) * 2 + 18 * doingcolor);
             fprintf(outputFile, "	sta DF0LOW\n");
-            fprintf(outputFile, "	lda #(>(playerpointers+%d)) & $0F\n", (pl - 49) * 2 + 18 * doingcolor);
+            fprintf(outputFile, "	lda #(>(playerpointers+%d)) & $0F\n", (playerNum - 49) * 2 + 18 * doingcolor);
             fprintf(outputFile, "	sta DF0HI\n");
         }
         fprintf(outputFile, "	LDX #<%s\n", label);
-        if (pl != '0') {
+        if (playerNum != '0') {
             fprintf(outputFile, "	STX DF0WRITE\n");
         }
         fprintf(outputFile, "	LDA #((>%s) & $0f) | (((>%s) / 2) & $70)\n", label, label);    // DPC+
-        if (pl != '0') {
+        if (playerNum != '0') {
             fprintf(outputFile, "	STA DF0WRITE\n");
         }
-        if ((statement[1][7] == '-') && (pl != '0'))    // multiple players
+
+        if (isMultiplePlayers)    // multiple players
         {
-            for (j = statement[1][6] + 1; j <= statement[1][8]; j++) {
+            for (j = playerNum; j < rangeEnd; j++) {
                 fprintf(outputFile, "	STX DF0WRITE\n");
                 fprintf(outputFile, "	STA DF0WRITE\n");    // creates multiple "copies" of single sprite
             }
@@ -2581,19 +2566,19 @@ void player(char **statement) {
     } else {
         fprintf(outputFile, "	LDX #<%s\n", label);
         if (!doingcolor) {
-            fprintf(outputFile, "	STX player%cpointerlo\n", pl);
+            fprintf(outputFile, "	STX player%cpointerlo\n", playerNum);
         } else {
-            fprintf(outputFile, "	STX player%ccolor\n", pl);
+            fprintf(outputFile, "	STX player%ccolor\n", playerNum);
         }
         fprintf(outputFile, "	LDA #>%s\n", label);
         if (!doingcolor)
-            fprintf(outputFile, "	STA player%cpointerhi\n", pl);
+            fprintf(outputFile, "	STA player%cpointerhi\n", playerNum);
         else
-            fprintf(outputFile, "	STA player%ccolor+1\n", pl);
+            fprintf(outputFile, "	STA player%ccolor+1\n", playerNum);
 
     }
 
-    //fprintf(outputFile, "    JMP .%sjump%c\n",statement[0],pl);
+    //fprintf(outputFile, "    JMP .%sjump%c\n",statement[0],playerNum);
 
     // insert DASM stuff to prevent page-wrapping of player data
     // stick this in a data file instead of displaying
@@ -2633,7 +2618,7 @@ void player(char **statement) {
     }                // potential bug: should this go after the below page wrapping stuff to prevent possible issues?
 
     sprintf(sprite_data[sprite_index++], "%s\n", label);
-    if (multisprite == 1 && pl == '0') {
+    if (multisprite == 1 && playerNum == '0') {
         sprintf(sprite_data[sprite_index++], "	.byte 0\n");
     }
 
@@ -2653,7 +2638,7 @@ void player(char **statement) {
     }
 
 
-    if (multisprite == 1 && pl == '0')
+    if (multisprite == 1 && playerNum == '0')
         height++;
 
 // record height and add page-wrap prevention
@@ -2663,10 +2648,10 @@ void player(char **statement) {
         sprintf(sprite_data[heightrecord + 1], "	repeat ($100-<*)\n	.byte 0\n");
         sprintf(sprite_data[heightrecord + 2], "	repend\n	endif\n");
     }
-    if (multisprite == 1 && pl == '0')
+    if (multisprite == 1 && playerNum == '0')
         height--;
 
-//  fprintf(outputFile, ".%sjump%c\n",statement[0],pl);
+//  fprintf(outputFile, ".%sjump%c\n",statement[0],playerNum);
     if (multisprite == 1)
         fprintf(outputFile, "	LDA #%d\n", height + 1);    //2);
     else if ((multisprite == 2) && (!doingcolor))
@@ -2674,9 +2659,9 @@ void player(char **statement) {
     else if (!doingcolor)
         fprintf(outputFile, "	LDA #%d\n", height - 1);    // added -1);
     if (!doingcolor)
-        fprintf(outputFile, "	STA player%cheight\n", pl);
+        fprintf(outputFile, "	STA player%cheight\n", playerNum);
 
-    if ((statement[1][7] == '-') && (multisprite == 2) && (pl != '0'))    // multiple players
+    if ((statement[1][7] == '-') && (multisprite == 2) && (playerNum != '0'))    // multiple players
     {
         for (j = statement[1][6] + 1; j <= statement[1][8]; j++) {
             if (!doingcolor)
