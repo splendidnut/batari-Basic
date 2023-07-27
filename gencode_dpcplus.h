@@ -12,5 +12,7 @@ extern void do_stack(char **statement);
 extern void pfscroll_DPCPlus(char **statement, int lineNum);
 extern void pfclear_DPCPlus(char **statement);
 extern void genCode_DPCPlusCollision(char firstPlayerParam, char secondPlayerParam);
+extern void bkcolors_DPCPlus(char **statement);
+extern void playfieldcolorandheight_DPCPlus(char **statement);
 
 #endif //BATARI_BASIC_GENCODE_DPCPLUS_H
