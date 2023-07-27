@@ -80,6 +80,8 @@ void preprocess(char *data) {
             case '=':
                 if ((lastOp == '<') || (lastOp == '>')) {
                     dst--;
+                } else {
+                    *(dst++) = ' ';
                 }
                 *(dst++) = c;
                 *(dst++) = ' ';
@@ -112,14 +114,10 @@ void preprocess(char *data) {
     if ((dst > data) && (*(dst-1) == ' ')) dst=dst-1;
 
     if (done && !foundchars) {
-        *(data++) = '\0';
-        //fprintf(stderr,"found nothing on line %d\n",lexerLine);
+        *data = '\0';       // if nothing of interest is found, clear out original string
         return;
     }
-    //fprintf(stderr,"%d: ", lexerLine);
-    *(dst++) = '\0';
-    //fprintf(stderr,"%s", originalStr);
-    //fprintf(stderr,"%s", data);
+    *(dst++) = '\0';    // make sure data is properly terminated
 }
 
 
