@@ -2688,104 +2688,6 @@ void lives(char **statement) {
     }
 }
 
-int check_colls(char *statement) {
-    int bit = 0;
-    if (!strncmp(statement, "collision(missile0,player1)\0", 27)) {
-        fprintf(outputFile, "	CXM0P");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(missile0,player0)\0", 27)) {
-        fprintf(outputFile, "	CXM0P");
-        bit = 6;
-    } else if (!strncmp(statement, "collision(missile1,player0)\0", 27)) {
-        fprintf(outputFile, "	CXM1P");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(missile1,player1)\0", 27)) {
-        fprintf(outputFile, "	CXM1P");
-        bit = 6;
-    } else if (!strncmp(statement, "collision(player0,playfield)\0", 28)) {
-        fprintf(outputFile, "	CXP0FB");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(player0,ball)\0", 23)) {
-        fprintf(outputFile, "	CXP0FB");
-        bit = 6;
-    } else if (!strncmp(statement, "collision(player1,playfield)\0", 28)) {
-        fprintf(outputFile, "	CXP1FB");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(player1,ball)\0", 23)) {
-        fprintf(outputFile, "	CXP1FB");
-        bit = 6;
-    } else if (!strncmp(statement, "collision(missile0,playfield)\0", 29)) {
-        fprintf(outputFile, "	CXM0FB");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(missile0,ball)\0", 24)) {
-        fprintf(outputFile, "	CXM0FB");
-        bit = 6;
-    } else if (!strncmp(statement, "collision(missile1,playfield)\0", 29)) {
-        fprintf(outputFile, "	CXM1FB");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(missile1,ball)\0", 24)) {
-        fprintf(outputFile, "	CXM1FB");
-        bit = 6;
-    } else if (!strncmp(statement, "collision(ball,playfield)\0", 25)) {
-        fprintf(outputFile, "	CXBLPF");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(player0,player1)\0", 26)) {
-        fprintf(outputFile, "	CXPPMM");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(missile0,missile1)\0", 28)) {
-        fprintf(outputFile, "	CXPPMM");
-        bit = 6;
-    }                // now repeat everything in reverse...
-
-
-    else if (!strncmp(statement, "collision(player1,missile0)\0", 27)) {
-        fprintf(outputFile, "	CXM0P");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(player0,missile0)\0", 27)) {
-        fprintf(outputFile, "	CXM0P");
-        bit = 6;
-    } else if (!strncmp(statement, "collision(player0,missile1)\0", 27)) {
-        fprintf(outputFile, "	CXM1P");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(player1,missile1)\0", 27)) {
-        fprintf(outputFile, "	CXM1P");
-        bit = 6;
-    } else if (!strncmp(statement, "collision(playfield,player0)\0", 28)) {
-        fprintf(outputFile, "	CXP0FB");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(ball,player0)\0", 23)) {
-        fprintf(outputFile, "	CXP0FB");
-        bit = 6;
-    } else if (!strncmp(statement, "collision(playfield,player1)\0", 28)) {
-        fprintf(outputFile, "	CXP1FB");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(ball,player1)\0", 23)) {
-        fprintf(outputFile, "	CXP1FB");
-        bit = 6;
-    } else if (!strncmp(statement, "collision(playfield,missile0)\0", 29)) {
-        fprintf(outputFile, "	CXM0FB");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(ball,missile0)\0", 24)) {
-        fprintf(outputFile, "	CXM0FB");
-        bit = 6;
-    } else if (!strncmp(statement, "collision(playfield,missile1)\0", 29)) {
-        fprintf(outputFile, "	CXM1FB");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(ball,missile1)\0", 24)) {
-        fprintf(outputFile, "	CXM1FB");
-        bit = 6;
-    } else if (!strncmp(statement, "collision(playfield,ball)\0", 25)) {
-        fprintf(outputFile, "	CXBLPF");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(player1,player0)\0", 26)) {
-        fprintf(outputFile, "	CXPPMM");
-        bit = 7;
-    } else if (!strncmp(statement, "collision(missile1,missile0)\0", 28)) {
-        fprintf(outputFile, "	CXPPMM");
-        bit = 6;
-    }
-    return bit;
-}
 
 void scorecolors(char **statement) {
     int i = 0;    //height can change
@@ -4638,7 +4540,7 @@ void set(char **statement) {
             } else if (!strncmp(statement[i], "collision\0", 9)) {
                 if (bs == 28) {
                     fprintf(outputFile, "DPC_kernel_options = ");
-                    if (check_colls(statement[i]) == 7)
+                    if (check_collisions(&statement[i]) == 7)
                         fprintf(outputFile, "+$40\n");
                     else
                         fprintf(outputFile, "\n");
