@@ -668,9 +668,6 @@ void playfield(char **statement) {
     }
 
 
-
-    //}
-
     if (ROMpf)            // if playfield is in ROM:
     {
         fprintf(outputFile, "	LDA #<PF1_data%d\n", playfield_number);
@@ -731,13 +728,13 @@ void playfield(char **statement) {
         fprintf(outputFile, "pflabel%d\n", playfield_number);
         fprintf(outputFile, "	lda PF_data%d,x\n", playfield_number);
         if (superchip) {
-//        fprintf(outputFile, "  ifconst pfres\n");
+            //        fprintf(outputFile, "  ifconst pfres\n");
             //      fprintf(outputFile, "      sta playfield+48-pfres*pfwidth-128,x\n");
             //    fprintf(outputFile, "  else\n");
             fprintf(outputFile, "	sta playfield-128,x\n");
             //  fprintf(outputFile, "  endif\n");
         } else {
-//        fprintf(outputFile, "  ifconst pfres\n");
+            //        fprintf(outputFile, "  ifconst pfres\n");
             //      fprintf(outputFile, "      sta playfield+48-pfres*pfwidth,x\n");
             //    fprintf(outputFile, "  else\n");
             fprintf(outputFile, "	sta playfield,x\n");
@@ -811,15 +808,17 @@ void playfield(char **statement) {
 }
 
 void jsr(char *location) {
-// determines whether to use the standard jsr (for 2k/4k or bankswitched stuff in current bank)
-// or to switch banks before calling the routine
+    // determines whether to use the standard jsr (for 2k/4k or bankswitched stuff in current bank)
+    // or to switch banks before calling the routine
     if ((!bs) || (bank == last_bank)) {
         fprintf(outputFile, " jsr %s\n", location);
         return;
     }
-// we need to switch banks
+
+    // we need to switch banks
     fprintf(outputFile, " sta temp7\n");
-// first create virtual return address
+
+    // first create virtual return address
     if (bs == 64)
         fprintf(outputFile, " lda #(((>(ret_point%d-1)) & $0F) | $%1x0) \n", ++numjsrs, bank - 1);
     else
@@ -827,17 +826,20 @@ void jsr(char *location) {
     fprintf(outputFile, " pha\n");
     fprintf(outputFile, " lda #<(ret_point%d-1)\n", numjsrs);
     fprintf(outputFile, " pha\n");
-// next we must push the place to jsr to
+
+    // next we must push the place to jsr to
     fprintf(outputFile, " lda #>(%s-1)\n", location);
     fprintf(outputFile, " pha\n");
     fprintf(outputFile, " lda #<(%s-1)\n", location);
     fprintf(outputFile, " pha\n");
-// now store regs on stack
+
+    // now store regs on stack
     fprintf(outputFile, " lda temp7\n");
     fprintf(outputFile, " pha\n");
     fprintf(outputFile, " txa\n");
     fprintf(outputFile, " pha\n");
-// select bank to switch to
+
+    // select bank to switch to
     fprintf(outputFile, " ldx #%d\n", last_bank);
     fprintf(outputFile, " jmp BS_jsr\n");
     fprintf(outputFile, "ret_point%d\n", numjsrs);
@@ -846,13 +848,13 @@ void jsr(char *location) {
 
 
 int switchjoy(char *input_source) {
-// place joystick/console switch reading code inline instead of as a subroutine
-// standard routines needed for pretty much all games
-// read switches, joysticks now compiler generated (more efficient)
+    // place joystick/console switch reading code inline instead of as a subroutine
+    // standard routines needed for pretty much all games
+    // read switches, joysticks now compiler generated (more efficient)
 
     // returns 0 if we need beq/bne, 1 if bvc/bvs, and 2 if bpl/bmi
 
-//  invalidate_Areg()  // do we need this?
+    //  invalidate_Areg()  // do we need this?
 
     if (!strncmp(input_source, "switchreset\0", 11)) {
         fprintf(outputFile, " lda #1\n");
