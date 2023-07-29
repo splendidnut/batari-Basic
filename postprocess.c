@@ -13,11 +13,10 @@
 // Now, since the files in the final asm can be different, and it doesn't
 // make sense to require the user to create a new batch file/shell script.
 
-int main(int argc, char *argv[]) {
+void link(char *path) {
     FILE *includesfile;
     FILE *asmfile;
     char ***readbBfile;
-    char path[500];
     char prepend[500];
     char line[500];
     char asmline[500];
@@ -25,19 +24,8 @@ int main(int argc, char *argv[]) {
     int writebBfile[17] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     int i;
     int j;
-    while ((i = getopt(argc, argv, "i:")) != -1) {
-        switch (i) {
-            case '?':
-                path[0] = '\0';
-                break;
-            case 'i':
-                strcpy(path, optarg);
-        }
-    }
-    if ((path[strlen(path) - 1] == '\\') || (path[strlen(path) - 1] == '/'))
-        strcat(path, "includes/");
-    else
-        strcat(path, "/includes/");
+
+
     if ((includesfile = fopen("includes.bB", "r")) == NULL)    // open file
     {
         fprintf(stderr, "Cannot open includes.bB for reading\n");
@@ -64,7 +52,7 @@ int main(int argc, char *argv[]) {
                     fprintf(stderr, "Cannot open %s for reading\n", line);
                     exit(1);
                 }
-            } else if (strncmp(line, "bB\0", 2)) {
+            } else if (strncmp(line, "bB\0", 2)!=0) {
                 fprintf(stderr, "User-defined %s found in current directory\n", line);
             }
         }
@@ -94,4 +82,30 @@ int main(int argc, char *argv[]) {
             bB++;
         // if (writebBfile) fclose(bBfile);
     }
+}
+
+int main(int argc, char *argv[]) {
+    char includesPath[500];
+    int i;
+    while ((i = getopt(argc, argv, "i:")) != -1) {
+        switch (i) {
+            case '?':
+                includesPath[0] = '\0';
+                break;
+            case 'i':
+                strcpy(includesPath, optarg);
+                break;
+            default:
+                break;
+        }
+    }
+
+    char slashChar = includesPath[strlen(includesPath) - 1];
+    if ((slashChar == '\\') || (slashChar == '/')) {
+        strcat(includesPath, "includes/");
+    } else {
+        strcat(includesPath, "/includes/");
+    }
+
+    link(includesPath);
 }

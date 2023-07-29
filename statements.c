@@ -879,10 +879,6 @@ void newbank(int bankno) {
     fullpath[0] = '\0';
     if (includespath[0]) {
         strcpy(fullpath, includespath);
-        if ((includespath[strlen(includespath) - 1] == '\\') || (includespath[strlen(includespath) - 1] == '/'))
-            strcat(fullpath, "includes/");
-        else
-            strcat(fullpath, "/includes/");
     }
     strcat(fullpath, "banksw.asm");
 
@@ -1129,10 +1125,15 @@ void add_inline(char *myinclude) {
 }
 
 void init_includes(char *path) {
-    if (path)
+    if (path) {
         strcpy(includespath, path);
-    else
+        if ((includespath[strlen(includespath) - 1] == '\\') || (includespath[strlen(includespath) - 1] == '/'))
+            strcat(includespath, "includes/");
+        else
+            strcat(includespath, "/includes/");
+    } else {
         includespath[0] = '\0';
+    }
     user_includes[0] = '\0';
 }
 
@@ -1204,10 +1205,6 @@ void create_includes(char *includesfile) {
     fullpath[0] = '\0';
     if (includespath[0]) {
         strcpy(fullpath, includespath);
-        if ((includespath[strlen(includespath) - 1] == '\\') || (includespath[strlen(includespath) - 1] == '/'))
-            strcat(fullpath, "includes/");
-        else
-            strcat(fullpath, "/includes/");
     }
     strcat(fullpath, includesfile);
 //  for (i=0;i<strlen(includesfile);++i) if (includesfile[i]=='\n') includesfile[i]='\0';
