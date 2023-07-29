@@ -1137,7 +1137,7 @@ void init_includes(char *path) {
     user_includes[0] = '\0';
 }
 
-void barf_sprite_data() {
+void output_sprite_data() {
     int i, j, k;
 // go to the last bank before barfing the graphics
     if (!bank)
@@ -1153,11 +1153,14 @@ void barf_sprite_data() {
     for (i = 0; i < sprite_index; ++i) {
         fprintf(outputFile, "%s", sprite_data[i]);
     }
+}
 
-    // now we must regurgitate the PF data
+void output_playfield_data() {
+    int i,j,k;
+    // now we must regurgitate the PF data (if ROM-based playfield)
 
-    for (i = 0; i < playfield_number; ++i) {
-        if (ROMpf) {
+    if (ROMpf) {
+        for (i = 0; i < playfield_number; ++i) {
             fprintf(outputFile, " if ((>(*+%d)) > (>*))\n ALIGN 256\n endif\n", playfield_index[i]);
             fprintf(outputFile, "PF1_data%d\n", i);
             for (j = playfield_index[i] - 1; j >= 0; j--) {
@@ -1185,9 +1188,6 @@ void barf_sprite_data() {
                 }
                 fprintf(outputFile, "\n");
             }
-        } else            // RAM pf
-        {
-            // do nuttin'
         }
     }
 }

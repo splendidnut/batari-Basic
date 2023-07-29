@@ -186,7 +186,8 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
     }
-    barf_sprite_data();
+    output_sprite_data();
+    output_playfield_data();
 
     write_footer();
     output_redefvars_file(redefVars_filename);
