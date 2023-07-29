@@ -2522,10 +2522,22 @@ void player(char **statement) {
         fprintf(outputFile, "	LDX #<%s\n", label);
         if (playerNum != '0') {
             fprintf(outputFile, "	STX DF0WRITE\n");
+        } else {
+            if (!doingcolor) {
+                fprintf(outputFile, "	STX player%cpointerlo\n", playerNum);
+            } else {
+                fprintf(outputFile, "	STX player%ccolor\n", playerNum);
+            }
         }
         fprintf(outputFile, "	LDA #((>%s) & $0f) | (((>%s) / 2) & $70)\n", label, label);    // DPC+
         if (playerNum != '0') {
             fprintf(outputFile, "	STA DF0WRITE\n");
+        } else {
+            if (!doingcolor) {
+                fprintf(outputFile, "	STA player%cpointerhi\n", playerNum);
+            } else {
+                fprintf(outputFile, "	STA player%ccolor+1\n", playerNum);
+            }
         }
 
         if (isMultiplePlayers)    // multiple players
