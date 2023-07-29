@@ -2362,6 +2362,8 @@ void pfvline(char **statement) {
 
 
 void pfscroll(char **statement) {
+    char *scrollDir = statement[2];
+
     invalidate_Areg();
     if (bs == 28) {
         pfscroll_DPCPlus(statement, line);
@@ -2369,9 +2371,9 @@ void pfscroll(char **statement) {
     }
     if (multisprite == 1) {
         fprintf(outputFile, "	LDA #");
-        if (!strncmp(statement[2], "up\0", 2))
+        if (!strncmp(scrollDir, "up\0", 2))
             fprintf(outputFile, "0\n");
-        else if (!strncmp(statement[2], "down", 2))
+        else if (!strncmp(scrollDir, "down", 2))
             fprintf(outputFile, "1\n");
         else {
             fprintf(stderr, "(%d) pfscroll direction unknown in multisprite kernel\n", line);
@@ -2379,17 +2381,17 @@ void pfscroll(char **statement) {
         }
     } else {
         fprintf(outputFile, "	LDA #");
-        if (!strncmp(statement[2], "left", 2))
+        if (!strncmp(scrollDir, "left", 2))
             fprintf(outputFile, "0\n");
-        else if (!strncmp(statement[2], "right", 2))
+        else if (!strncmp(scrollDir, "right", 2))
             fprintf(outputFile, "1\n");
-        else if (!strncmp(statement[2], "upup\0", 4))
+        else if (!strncmp(scrollDir, "upup\0", 4))
             fprintf(outputFile, "6\n");
-        else if (!strncmp(statement[2], "downdown", 6))
+        else if (!strncmp(scrollDir, "downdown", 6))
             fprintf(outputFile, "8\n");
-        else if (!strncmp(statement[2], "up\0", 2))
+        else if (!strncmp(scrollDir, "up\0", 2))
             fprintf(outputFile, "2\n");
-        else if (!strncmp(statement[2], "down", 2))
+        else if (!strncmp(scrollDir, "down", 2))
             fprintf(outputFile, "4\n");
         else {
             fprintf(stderr, "(%d) pfscroll direction unknown\n", line);
@@ -2691,7 +2693,7 @@ void lives(char **statement) {
 }
 
 int check_colls(char *statement) {
-    int bit;
+    int bit = 0;
     if (!strncmp(statement, "collision(missile0,player1)\0", 27)) {
         fprintf(outputFile, "	CXM0P");
         bit = 7;
