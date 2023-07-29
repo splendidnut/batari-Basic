@@ -242,7 +242,7 @@ void pfclear(char **statement) {
 /**
  * Process a DATA chunk that's specifically for graphics:  sprites, playfield, etc.
  */
-void process_gfx_data(const char *label, const char *dataTypeName) {
+int process_gfx_data(const char *label, const char *dataTypeName) {
     char data[200];
     int l = 0;
 
@@ -268,6 +268,7 @@ void process_gfx_data(const char *label, const char *dataTypeName) {
         sprintf(errTooMuchData, "Error: too much data in %s declaration\n", dataTypeName);
         prerror(errTooMuchData);
     }
+    return l;
 }
 
 

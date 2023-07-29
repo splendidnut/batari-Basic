@@ -186,7 +186,6 @@ void genCode_DPCPlusCollision(char firstPlayerParam, char secondPlayerParam) {
 void bkcolors_DPCPlus(char **statement) {
     FILE *outputFile = getOutputFile();
     char label[200];
-    int l = 0;
 
     sprintf(label, "backgroundcolor%s\n", statement[0]);
     removeCR(label);
@@ -201,7 +200,7 @@ void bkcolors_DPCPlus(char **statement) {
     fprintf(outputFile, "	LDA #0\n");
     fprintf(outputFile, "	STA PARAMETER\n");
 
-    process_gfx_data(label, "bkcolors");
+    int l = process_gfx_data(label, "bkcolors");
     fprintf(outputFile, "	LDA #%d\n", l);
     fprintf(outputFile, "	STA PARAMETER\n");
     fprintf(outputFile, "	LDA #1\n");
@@ -210,7 +209,6 @@ void bkcolors_DPCPlus(char **statement) {
 
 void playfieldcolorandheight_DPCPlus(char **statement) {
     FILE *outputFile = getOutputFile();
-    int l = 0;
     char label[200];
 
     sprintf(label, "playfieldcolor%s\n", statement[0]);
@@ -226,7 +224,7 @@ void playfieldcolorandheight_DPCPlus(char **statement) {
     fprintf(outputFile, "	LDA #0\n");
     fprintf(outputFile, "	STA PARAMETER\n");
 
-    process_gfx_data(label, "pfcolor");
+    int l = process_gfx_data(label, "pfcolor");
     fprintf(outputFile, "	LDA #%d\n", l);
     fprintf(outputFile, "	STA PARAMETER\n");
     fprintf(outputFile, "	LDA #1\n");

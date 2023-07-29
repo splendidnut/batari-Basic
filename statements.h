@@ -37,7 +37,7 @@ extern void print_statement_breakdown(char **stmtList);
 extern void write_footer();
 
 // shared processing functions
-extern void process_gfx_data(const char *label, const char *dataTypeName);
+extern int process_gfx_data(const char *label, const char *dataTypeName);
 
 // statement processing functions
 extern void doextra(char *);
