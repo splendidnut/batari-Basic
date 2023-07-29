@@ -30,11 +30,17 @@ extern FILE *getOutputFile();
 extern bool read_source_line(char *data);
 extern void trim_string(char *data, bool addEol);
 
+extern void removeCR(char *);
+extern int printimmed(char *);
+extern int isimmed(char *);
+
+
 // functions for debugging
 extern void print_statement_breakdown(char **stmtList);
 
 // functions for compiler output
 extern void write_footer();
+extern void prerror(char *);
 
 // shared processing functions
 extern int process_gfx_data(const char *label, const char *dataTypeName);
@@ -105,20 +111,6 @@ extern void pfvline(char **);
 extern void pfscroll(char **);
 extern void player(char **);
 extern void drawscreen(void);
-extern void prerror(char *);
-extern void remove_trailing_commas(char *);
-extern void removeCR(char *);
-extern void bmi(char *);
-extern void bpl(char *);
-extern void bne(char *);
-extern void beq(char *);
-extern void bcc(char *);
-extern void bcs(char *);
-extern void bvc(char *);
-extern void bvs(char *);
-extern int printimmed(char *);
-extern int isimmed(char *);
-extern int number(unsigned char);
 extern void output_redefvars_file(char *);
 
 #endif

@@ -191,52 +191,75 @@ void write_footer() {
     fprintf(outputFile, " \n");
 }
 
-//------------------------------------------------------
+void prerror(char *myerror) {
+    fprintf(stderr, "(%d): %s\n", line, myerror);
+}
+
 
 void currdir_foundmsg(char *foundfile) {
     fprintf(stderr, "User-defined %s found in the current directory\n", foundfile);
 }
 
-void doreboot() {
-    fprintf(outputFile, "	JMP ($FFFC)\n");
-}
 
 int linenum() {
     // returns current line number in source
     return line;
 }
 
-void vblank() {
-    // code that will be run in the vblank area
-    // subject to limitations!
-    // must exit with a return [thisbank if bankswitching used]
-    fprintf(outputFile, "vblank_bB_code\n");
+
+int number(unsigned char value) {
+    return ((int) value) - '0';
 }
 
+void removeCR(char *linenumber)    // remove trailing CR from string
+{
+    while ((linenumber[strlen(linenumber) - 1] == (unsigned char) 0x0A) ||
+           (linenumber[strlen(linenumber) - 1] == (unsigned char) 0x0D))
+        linenumber[strlen(linenumber) - 1] = '\0';
+}
 
-
-void pfclear(char **statement) {
-    char getindex0[200];
-    int index = 0;
-
-    invalidate_Areg();
-
-    if (bs == 28) {
-        pfclear_DPCPlus(statement);
-        return;
+void remove_trailing_commas(char *linenumber)    // remove trailing commas from string
+{
+    int i;
+    for (i = strlen(linenumber) - 1; i > 0; i--) {
+        if ((linenumber[i] != ',') &&
+            (linenumber[i] != ' ') &&
+            (linenumber[i] != (unsigned char) 0x0A) && (linenumber[i] != (unsigned char) 0x0D))
+            break;
+        if (linenumber[i] == ',') {
+            linenumber[i] = ' ';
+            break;
+        }
     }
+}
 
-    if ((!statement[2][0]) || (statement[2][0] == ':'))
-        fprintf(outputFile, "	LDA #0\n");
-    else {
-        index = getindex(statement[2], &getindex0[0]);
-        if (index)
-            loadindex(&getindex0[0]);
-        fprintf(outputFile, "	LDA ");
-        printindex(statement[2], index);
+int printimmed(char *value) {
+    int immed = isimmed(value);
+    if (immed)
+        fprintf(outputFile, "#");
+    return immed;
+}
+
+int isimmed(char *value) {
+    // search queue of constants
+    int i;
+    // removeCR(value);
+    for (i = 0; i < numconstants; ++i) {
+        if (!strcmp(value, constants[i])) {
+            // a constant should be treated as an immediate
+            return 1;
+        }
     }
-    removeCR(statement[1]);
-    jsr(statement[1]);
+    if (!strcmp(value + (strlen(value) > 7 ? strlen(value) - 7 : 0), "_length")) {
+        // Warning about use of data_length before data statement
+        fprintf(stderr,
+                "(%d): Warning: Possible use of data statement length before data statement is defined\n      Workaround: forward declaration may be done by const %s=%s at beginning of code\n",
+                line, value, value);
+    }
+    if ((value[0] == '$') || (value[0] == '%') || (value[0] < (unsigned char) 0x3A)) {
+        return 1;
+    } else
+        return 0;
 }
 
 /**
@@ -271,6 +294,46 @@ int process_gfx_data(const char *label, const char *dataTypeName) {
     return l;
 }
 
+
+//------------------------------------------------------------------------------------------
+//------------------------- batariBasic commands
+//------------------------------------------------------------------------------------------
+
+void doreboot() {
+    fprintf(outputFile, "	JMP ($FFFC)\n");
+}
+
+void vblank() {
+    // code that will be run in the vblank area
+    // subject to limitations!
+    // must exit with a return [thisbank if bankswitching used]
+    fprintf(outputFile, "vblank_bB_code\n");
+}
+
+
+void pfclear(char **statement) {
+    char getindex0[200];
+    int index = 0;
+
+    invalidate_Areg();
+
+    if (bs == 28) {
+        pfclear_DPCPlus(statement);
+        return;
+    }
+
+    if ((!statement[2][0]) || (statement[2][0] == ':'))
+        fprintf(outputFile, "	LDA #0\n");
+    else {
+        index = getindex(statement[2], &getindex0[0]);
+        if (index)
+            loadindex(&getindex0[0]);
+        fprintf(outputFile, "	LDA ");
+        printindex(statement[2], index);
+    }
+    removeCR(statement[1]);
+    jsr(statement[1]);
+}
 
 
 void bkcolors(char **statement) {
@@ -1847,179 +1910,6 @@ void compressdata(char **statement, int num1, int num2) {
             statement[i][j] = statement[i + num2][j];
 }
 
-void ongoto(char **statement) {
-// warning!!! bankswitching not yet supported
-    int k, i = 4;
-
-    if (!strncmp(statement[3], "gosub\0", 5)) {
-        fprintf(outputFile, "	lda #>(ongosub%d-1)\n", ongosub);
-        fprintf(outputFile, "	PHA\n");
-        fprintf(outputFile, "	lda #<(ongosub%d-1)\n", ongosub);
-        fprintf(outputFile, "	PHA\n");
-    }
-    if (strcmp(statement[2], Areg))
-        fprintf(outputFile, "	LDX %s\n", statement[2]);
-    //fprintf(outputFile, "    ASL\n");
-    //fprintf(outputFile, "    TAX\n");
-    fprintf(outputFile, "	LDA .%sjumptablehi,x\n", statement[0]);
-    fprintf(outputFile, "	PHA\n");
-    //fprintf(outputFile, "    INX\n");
-    fprintf(outputFile, "	LDA .%sjumptablelo,x\n", statement[0]);
-    fprintf(outputFile, "	PHA\n");
-    fprintf(outputFile, "	RTS\n");
-    fprintf(outputFile, ".%sjumptablehi\n", statement[0]);
-    while ((statement[i][0] != ':') && (statement[i][0] != '\0')) {
-        for (k = 0; k < 200; ++k)
-            if ((statement[i][k] == (unsigned char) 0x0A) || (statement[i][k] == (unsigned char) 0x0D))
-                statement[i][k] = '\0';
-        fprintf(outputFile, "	.byte >(.%s-1)\n", statement[i++]);
-    }
-    fprintf(outputFile, ".%sjumptablelo\n", statement[0]);
-    i = 4;
-    while ((statement[i][0] != ':') && (statement[i][0] != '\0')) {
-        for (k = 0; k < 200; ++k)
-            if ((statement[i][k] == (unsigned char) 0x0A) || (statement[i][k] == (unsigned char) 0x0D))
-                statement[i][k] = '\0';
-        fprintf(outputFile, "	.byte <(.%s-1)\n", statement[i++]);
-    }
-    if (!strncmp(statement[3], "gosub\0", 5))
-        fprintf(outputFile, "ongosub%d\n", ongosub++);
-}
-
-void dofor(char **statement) {
-    if (strcmp(statement[4], Areg)) {
-        fprintf(outputFile, "	LDA ");
-        printimmed(statement[4]);
-        fprintf(outputFile, "%s\n", statement[4]);
-    }
-
-    fprintf(outputFile, "	STA %s\n", statement[2]);
-
-    forlabel[numfors][0] = '\0';
-    sprintf(forlabel[numfors], "%sfor%s", statement[0], statement[2]);
-    fprintf(outputFile, ".%s\n", forlabel[numfors]);
-
-    forend[numfors][0] = '\0';
-    strcpy(forend[numfors], statement[6]);
-
-    forvar[numfors][0] = '\0';
-    strcpy(forvar[numfors], statement[2]);
-
-    forstep[numfors][0] = '\0';
-
-    if (!strncasecmp(statement[7], "step\0", 4))
-        strcpy(forstep[numfors], statement[8]);
-    else
-        strcpy(forstep[numfors], "1");
-
-    numfors++;
-}
-
-void next(char **statement) {
-    int immed = 0;
-    int immedend = 0;
-    int failsafe = 0;
-    char failsafelabel[200];
-
-    invalidate_Areg();
-
-    if (!numfors) {
-        fprintf(stderr, "(%d) next without for\n", line);
-        exit(1);
-    }
-    numfors--;
-    if (!strncmp(forstep[numfors], "1\0", 2))    // step 1
-    {
-        fprintf(outputFile, "	LDA %s\n", forvar[numfors]);
-        fprintf(outputFile, "	CMP ");
-        printimmed(forend[numfors]);
-        fprintf(outputFile, "%s\n", forend[numfors]);
-        fprintf(outputFile, "	INC %s\n", forvar[numfors]);
-        bcc(forlabel[numfors]);
-    } else if ((!strncmp(forstep[numfors], "-1\0", 3)) ||
-               (!strncmp(forstep[numfors], "255\0", 4))) {                // step -1
-        fprintf(outputFile, "	DEC %s\n", forvar[numfors]);
-        if (strncmp(forend[numfors], "1\0", 2)) {
-            fprintf(outputFile, "	LDA %s\n", forvar[numfors]);
-            fprintf(outputFile, "	CMP ");
-            if (!strncmp(forend[numfors], "0\0", 2)) {
-                // the special case of 0 as end, since we can't check to see if it was smaller than 0
-                fprintf(outputFile, "#255\n");
-                bne(forlabel[numfors]);
-            } else // general case
-            {
-                printimmed(forend[numfors]);
-                fprintf(outputFile, "%s\n", forend[numfors]);
-                bcs(forlabel[numfors]);
-            }
-        } else
-            bne(forlabel[numfors]);
-    } else            // step other than 1 or -1
-    {
-        // normally, the generated code adds to or subtracts from the for variable, and checks
-        // to see if it's less than the ending value.
-        // however, if the step would make the variable less than zero or more than 255
-        // then this check will not work.  The compiler will attempt to detect this situation
-        // if the step and end are known.  If the step and end are not known (that is,
-        // either is a variable) then much more complex code must be generated.
-
-        fprintf(outputFile, "	LDA %s\n", forvar[numfors]);
-        fprintf(outputFile, "	CLC\n");
-        fprintf(outputFile, "	ADC ");
-        immed = printimmed(forstep[numfors]);
-        fprintf(outputFile, "%s\n", forstep[numfors]);
-
-        if (immed && isimmed(forend[numfors]))    // the step and end are immediate
-        {
-            if (atoi(forstep[numfors]) & 128)    // step is negative
-            {
-                if ((256 - (atoi(forstep[numfors]) & 255)) >=
-                    atoi(forend[numfors])) {        // if we are in danger of going < 0...we will have carry clear after ADC
-                    failsafe = 1;
-                    sprintf(failsafelabel, "%s_failsafe", forlabel[numfors]);
-                    bcc(failsafelabel);
-                }
-            } else {            // step is positive
-                if ((atoi(forstep[numfors]) + atoi(forend[numfors])) >
-                    255) {        // if we are in danger of going > 255...we will have carry set after ADC
-                    failsafe = 1;
-                    sprintf(failsafelabel, "%s_failsafe", forlabel[numfors]);
-                    bcs(failsafelabel);
-                }
-            }
-
-        }
-        fprintf(outputFile, "	STA %s\n", forvar[numfors]);
-
-        fprintf(outputFile, "	CMP ");
-        immedend = printimmed(forend[numfors]);
-        // add 1 to immediate compare for increasing loops
-        if (immedend && !(atoi(forstep[numfors]) & 128))
-            strcat(forend[numfors], "+1");
-        fprintf(outputFile, "%s\n", forend[numfors]);
-// if step number is 1 to 127 then add 1 and use bcc, otherwise bcs
-// if step is a variable, we'll need to check for every loop iteration
-//
-// Warning! no failsafe checks with variables as step or end - it's the
-// programmer's job to make sure the end value doesn't overflow
-        if (!immed) {
-            fprintf(outputFile, "	LDX %s\n", forstep[numfors]);
-            fprintf(outputFile, "	BMI .%sbcs\n", statement[0]);
-            bcc(forlabel[numfors]);
-            fprintf(outputFile, "	CLC\n");
-            fprintf(outputFile, ".%sbcs\n", statement[0]);
-            bcs(forlabel[numfors]);
-        } else if (atoi(forstep[numfors]) & 128)
-            bcs(forlabel[numfors]);
-        else {
-            bcc(forlabel[numfors]);
-            if (!immedend)
-                beq(forlabel[numfors]);
-        }
-    }
-    if (failsafe)
-        fprintf(outputFile, ".%s\n", failsafelabel);
-}
 
 void dim(char **statement) {
     // just take the statement and pass it right to a header file
@@ -2838,6 +2728,127 @@ int check_collisions(char **statement) {
     return bit;
 }
 
+void hotspotcheck(char *linenumber) {
+    if (bs)            //if bankswitching, check for reverse branches from $1fXX that trigger hotspots...
+    {
+        printf
+                (" if ( (((((#>*)&$1f)*256)|(#<.%s))>=bankswitch_hotspot) && (((((#>*)&$1f)*256)|(#<.%s))<=(bankswitch_hotspot+bs_mask)) )\n",
+                 linenumber, linenumber);
+        printf
+                ("   echo \"WARNING: branch near the end of bank %d may accidentally trigger a bankswitch. Reposition code there if bad things happen.\"\n",
+                 bank);
+        fprintf(outputFile, " endif\n");
+    }
+}
+
+
+void bmi(char *linenumber) {
+    removeCR(linenumber);
+    if (smartbranching) {
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bmi .%s\n", linenumber, linenumber, linenumber);
+        // branches might be allowed as below - check carefully to make sure!
+        // fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -129)\n    bmi .%s\n",linenumber,linenumber,linenumber);
+        fprintf(outputFile, " else\n	bpl .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
+    } else {
+        fprintf(outputFile, "	bmi .%s\n", linenumber);
+        hotspotcheck(linenumber);
+    }
+}
+
+void bpl(char *linenumber) {
+    removeCR(linenumber);
+    if (smartbranching) {
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bpl .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	bmi .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
+    } else {
+        fprintf(outputFile, "	bpl .%s\n", linenumber);
+        hotspotcheck(linenumber);
+    }
+}
+
+void bne(char *linenumber) {
+    removeCR(linenumber);
+    if (smartbranching) {
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	BNE .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	beq .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
+    } else {
+        fprintf(outputFile, "	bne .%s\n", linenumber);
+        hotspotcheck(linenumber);
+    }
+}
+
+void beq(char *linenumber) {
+    removeCR(linenumber);
+    if (smartbranching) {
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	BEQ .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	bne .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
+    } else {
+        fprintf(outputFile, "	beq .%s\n", linenumber);
+        hotspotcheck(linenumber);
+    }
+}
+
+void bcc(char *linenumber) {
+    removeCR(linenumber);
+    if (smartbranching) {
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bcc .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	bcs .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
+    } else {
+        fprintf(outputFile, "	bcc .%s\n", linenumber);
+        hotspotcheck(linenumber);
+    }
+
+}
+
+void bcs(char *linenumber) {
+    removeCR(linenumber);
+    if (smartbranching) {
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bcs .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	bcc .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
+    } else {
+        fprintf(outputFile, "	bcs .%s\n", linenumber);
+        hotspotcheck(linenumber);
+    }
+}
+
+void bvc(char *linenumber) {
+    removeCR(linenumber);
+    if (smartbranching) {
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bvc .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	bvs .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
+    } else {
+        fprintf(outputFile, "	bvc .%s\n", linenumber);
+        hotspotcheck(linenumber);
+    }
+}
+
+void bvs(char *linenumber) {
+    removeCR(linenumber);
+    if (smartbranching) {
+        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bvs .%s\n", linenumber, linenumber, linenumber);
+        fprintf(outputFile, " else\n	bvc .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
+        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
+        fprintf(outputFile, " endif\n");
+    } else {
+        fprintf(outputFile, "	bvs .%s\n", linenumber);
+        hotspotcheck(linenumber);
+    }
+}
+
 
 
 void doif(char **statement) {
@@ -3580,6 +3591,184 @@ void doif(char **statement) {
     }
     freemem(dealloccstatement);
 }
+
+
+void ongoto(char **statement) {
+// warning!!! bankswitching not yet supported
+    int k, i = 4;
+
+    if (!strncmp(statement[3], "gosub\0", 5)) {
+        fprintf(outputFile, "	lda #>(ongosub%d-1)\n", ongosub);
+        fprintf(outputFile, "	PHA\n");
+        fprintf(outputFile, "	lda #<(ongosub%d-1)\n", ongosub);
+        fprintf(outputFile, "	PHA\n");
+    }
+    if (strcmp(statement[2], Areg))
+        fprintf(outputFile, "	LDX %s\n", statement[2]);
+    //fprintf(outputFile, "    ASL\n");
+    //fprintf(outputFile, "    TAX\n");
+    fprintf(outputFile, "	LDA .%sjumptablehi,x\n", statement[0]);
+    fprintf(outputFile, "	PHA\n");
+    //fprintf(outputFile, "    INX\n");
+    fprintf(outputFile, "	LDA .%sjumptablelo,x\n", statement[0]);
+    fprintf(outputFile, "	PHA\n");
+    fprintf(outputFile, "	RTS\n");
+    fprintf(outputFile, ".%sjumptablehi\n", statement[0]);
+    while ((statement[i][0] != ':') && (statement[i][0] != '\0')) {
+        for (k = 0; k < 200; ++k)
+            if ((statement[i][k] == (unsigned char) 0x0A) || (statement[i][k] == (unsigned char) 0x0D))
+                statement[i][k] = '\0';
+        fprintf(outputFile, "	.byte >(.%s-1)\n", statement[i++]);
+    }
+    fprintf(outputFile, ".%sjumptablelo\n", statement[0]);
+    i = 4;
+    while ((statement[i][0] != ':') && (statement[i][0] != '\0')) {
+        for (k = 0; k < 200; ++k)
+            if ((statement[i][k] == (unsigned char) 0x0A) || (statement[i][k] == (unsigned char) 0x0D))
+                statement[i][k] = '\0';
+        fprintf(outputFile, "	.byte <(.%s-1)\n", statement[i++]);
+    }
+    if (!strncmp(statement[3], "gosub\0", 5))
+        fprintf(outputFile, "ongosub%d\n", ongosub++);
+}
+
+void dofor(char **statement) {
+    if (strcmp(statement[4], Areg)) {
+        fprintf(outputFile, "	LDA ");
+        printimmed(statement[4]);
+        fprintf(outputFile, "%s\n", statement[4]);
+    }
+
+    fprintf(outputFile, "	STA %s\n", statement[2]);
+
+    forlabel[numfors][0] = '\0';
+    sprintf(forlabel[numfors], "%sfor%s", statement[0], statement[2]);
+    fprintf(outputFile, ".%s\n", forlabel[numfors]);
+
+    forend[numfors][0] = '\0';
+    strcpy(forend[numfors], statement[6]);
+
+    forvar[numfors][0] = '\0';
+    strcpy(forvar[numfors], statement[2]);
+
+    forstep[numfors][0] = '\0';
+
+    if (!strncasecmp(statement[7], "step\0", 4))
+        strcpy(forstep[numfors], statement[8]);
+    else
+        strcpy(forstep[numfors], "1");
+
+    numfors++;
+}
+
+void next(char **statement) {
+    int immed = 0;
+    int immedend = 0;
+    int failsafe = 0;
+    char failsafelabel[200];
+
+    invalidate_Areg();
+
+    if (!numfors) {
+        fprintf(stderr, "(%d) next without for\n", line);
+        exit(1);
+    }
+    numfors--;
+    if (!strncmp(forstep[numfors], "1\0", 2))    // step 1
+    {
+        fprintf(outputFile, "	LDA %s\n", forvar[numfors]);
+        fprintf(outputFile, "	CMP ");
+        printimmed(forend[numfors]);
+        fprintf(outputFile, "%s\n", forend[numfors]);
+        fprintf(outputFile, "	INC %s\n", forvar[numfors]);
+        bcc(forlabel[numfors]);
+    } else if ((!strncmp(forstep[numfors], "-1\0", 3)) ||
+               (!strncmp(forstep[numfors], "255\0", 4))) {                // step -1
+        fprintf(outputFile, "	DEC %s\n", forvar[numfors]);
+        if (strncmp(forend[numfors], "1\0", 2)) {
+            fprintf(outputFile, "	LDA %s\n", forvar[numfors]);
+            fprintf(outputFile, "	CMP ");
+            if (!strncmp(forend[numfors], "0\0", 2)) {
+                // the special case of 0 as end, since we can't check to see if it was smaller than 0
+                fprintf(outputFile, "#255\n");
+                bne(forlabel[numfors]);
+            } else // general case
+            {
+                printimmed(forend[numfors]);
+                fprintf(outputFile, "%s\n", forend[numfors]);
+                bcs(forlabel[numfors]);
+            }
+        } else
+            bne(forlabel[numfors]);
+    } else            // step other than 1 or -1
+    {
+        // normally, the generated code adds to or subtracts from the for variable, and checks
+        // to see if it's less than the ending value.
+        // however, if the step would make the variable less than zero or more than 255
+        // then this check will not work.  The compiler will attempt to detect this situation
+        // if the step and end are known.  If the step and end are not known (that is,
+        // either is a variable) then much more complex code must be generated.
+
+        fprintf(outputFile, "	LDA %s\n", forvar[numfors]);
+        fprintf(outputFile, "	CLC\n");
+        fprintf(outputFile, "	ADC ");
+        immed = printimmed(forstep[numfors]);
+        fprintf(outputFile, "%s\n", forstep[numfors]);
+
+        if (immed && isimmed(forend[numfors]))    // the step and end are immediate
+        {
+            if (atoi(forstep[numfors]) & 128)    // step is negative
+            {
+                if ((256 - (atoi(forstep[numfors]) & 255)) >=
+                    atoi(forend[numfors])) {        // if we are in danger of going < 0...we will have carry clear after ADC
+                    failsafe = 1;
+                    sprintf(failsafelabel, "%s_failsafe", forlabel[numfors]);
+                    bcc(failsafelabel);
+                }
+            } else {            // step is positive
+                if ((atoi(forstep[numfors]) + atoi(forend[numfors])) >
+                    255) {        // if we are in danger of going > 255...we will have carry set after ADC
+                    failsafe = 1;
+                    sprintf(failsafelabel, "%s_failsafe", forlabel[numfors]);
+                    bcs(failsafelabel);
+                }
+            }
+
+        }
+        fprintf(outputFile, "	STA %s\n", forvar[numfors]);
+
+        fprintf(outputFile, "	CMP ");
+        immedend = printimmed(forend[numfors]);
+        // add 1 to immediate compare for increasing loops
+        if (immedend && !(atoi(forstep[numfors]) & 128))
+            strcat(forend[numfors], "+1");
+        fprintf(outputFile, "%s\n", forend[numfors]);
+// if step number is 1 to 127 then add 1 and use bcc, otherwise bcs
+// if step is a variable, we'll need to check for every loop iteration
+//
+// Warning! no failsafe checks with variables as step or end - it's the
+// programmer's job to make sure the end value doesn't overflow
+        if (!immed) {
+            fprintf(outputFile, "	LDX %s\n", forstep[numfors]);
+            fprintf(outputFile, "	BMI .%sbcs\n", statement[0]);
+            bcc(forlabel[numfors]);
+            fprintf(outputFile, "	CLC\n");
+            fprintf(outputFile, ".%sbcs\n", statement[0]);
+            bcs(forlabel[numfors]);
+        } else if (atoi(forstep[numfors]) & 128)
+            bcs(forlabel[numfors]);
+        else {
+            bcc(forlabel[numfors]);
+            if (!immedend)
+                beq(forlabel[numfors]);
+        }
+    }
+    if (failsafe)
+        fprintf(outputFile, ".%s\n", failsafelabel);
+}
+
+
+
 
 int getcondpart() {
     return condpart;
@@ -4652,125 +4841,6 @@ void dopop() {
     fprintf(outputFile, "	pla\n");
 }
 
-void hotspotcheck(char *linenumber) {
-    if (bs)            //if bankswitching, check for reverse branches from $1fXX that trigger hotspots...
-    {
-        printf
-                (" if ( (((((#>*)&$1f)*256)|(#<.%s))>=bankswitch_hotspot) && (((((#>*)&$1f)*256)|(#<.%s))<=(bankswitch_hotspot+bs_mask)) )\n",
-                 linenumber, linenumber);
-        printf
-                ("   echo \"WARNING: branch near the end of bank %d may accidentally trigger a bankswitch. Reposition code there if bad things happen.\"\n",
-                 bank);
-        fprintf(outputFile, " endif\n");
-    }
-}
-
-void bmi(char *linenumber) {
-    removeCR(linenumber);
-    if (smartbranching) {
-        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bmi .%s\n", linenumber, linenumber, linenumber);
-        // branches might be allowed as below - check carefully to make sure!
-        // fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -129)\n    bmi .%s\n",linenumber,linenumber,linenumber);
-        fprintf(outputFile, " else\n	bpl .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
-        fprintf(outputFile, " endif\n");
-    } else {
-        fprintf(outputFile, "	bmi .%s\n", linenumber);
-        hotspotcheck(linenumber);
-    }
-}
-
-void bpl(char *linenumber) {
-    removeCR(linenumber);
-    if (smartbranching) {
-        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bpl .%s\n", linenumber, linenumber, linenumber);
-        fprintf(outputFile, " else\n	bmi .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
-        fprintf(outputFile, " endif\n");
-    } else {
-        fprintf(outputFile, "	bpl .%s\n", linenumber);
-        hotspotcheck(linenumber);
-    }
-}
-
-void bne(char *linenumber) {
-    removeCR(linenumber);
-    if (smartbranching) {
-        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	BNE .%s\n", linenumber, linenumber, linenumber);
-        fprintf(outputFile, " else\n	beq .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
-        fprintf(outputFile, " endif\n");
-    } else {
-        fprintf(outputFile, "	bne .%s\n", linenumber);
-        hotspotcheck(linenumber);
-    }
-}
-
-void beq(char *linenumber) {
-    removeCR(linenumber);
-    if (smartbranching) {
-        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	BEQ .%s\n", linenumber, linenumber, linenumber);
-        fprintf(outputFile, " else\n	bne .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
-        fprintf(outputFile, " endif\n");
-    } else {
-        fprintf(outputFile, "	beq .%s\n", linenumber);
-        hotspotcheck(linenumber);
-    }
-}
-
-void bcc(char *linenumber) {
-    removeCR(linenumber);
-    if (smartbranching) {
-        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bcc .%s\n", linenumber, linenumber, linenumber);
-        fprintf(outputFile, " else\n	bcs .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
-        fprintf(outputFile, " endif\n");
-    } else {
-        fprintf(outputFile, "	bcc .%s\n", linenumber);
-        hotspotcheck(linenumber);
-    }
-
-}
-
-void bcs(char *linenumber) {
-    removeCR(linenumber);
-    if (smartbranching) {
-        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bcs .%s\n", linenumber, linenumber, linenumber);
-        fprintf(outputFile, " else\n	bcc .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
-        fprintf(outputFile, " endif\n");
-    } else {
-        fprintf(outputFile, "	bcs .%s\n", linenumber);
-        hotspotcheck(linenumber);
-    }
-}
-
-void bvc(char *linenumber) {
-    removeCR(linenumber);
-    if (smartbranching) {
-        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bvc .%s\n", linenumber, linenumber, linenumber);
-        fprintf(outputFile, " else\n	bvs .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
-        fprintf(outputFile, " endif\n");
-    } else {
-        fprintf(outputFile, "	bvc .%s\n", linenumber);
-        hotspotcheck(linenumber);
-    }
-}
-
-void bvs(char *linenumber) {
-    removeCR(linenumber);
-    if (smartbranching) {
-        fprintf(outputFile, " if ((* - .%s) < 127) && ((* - .%s) > -128)\n	bvs .%s\n", linenumber, linenumber, linenumber);
-        fprintf(outputFile, " else\n	bvc .%dskip%s\n	jmp .%s\n", branchtargetnumber, linenumber, linenumber);
-        fprintf(outputFile, ".%dskip%s\n", branchtargetnumber++, linenumber);
-        fprintf(outputFile, " endif\n");
-    } else {
-        fprintf(outputFile, "	bvs .%s\n", linenumber);
-        hotspotcheck(linenumber);
-    }
-}
 
 void drawscreen() {
     invalidate_Areg();
@@ -4778,65 +4848,6 @@ void drawscreen() {
         jsrbank1("drawscreen");
     else
         jsr("drawscreen");
-}
-
-void prerror(char *myerror) {
-    fprintf(stderr, "(%d): %s\n", line, myerror);
-}
-
-int printimmed(char *value) {
-    int immed = isimmed(value);
-    if (immed)
-        fprintf(outputFile, "#");
-    return immed;
-}
-
-int isimmed(char *value) {
-    // search queue of constants
-    int i;
-    // removeCR(value);
-    for (i = 0; i < numconstants; ++i) {
-        if (!strcmp(value, constants[i])) {
-            // a constant should be treated as an immediate
-            return 1;
-        }
-    }
-    if (!strcmp(value + (strlen(value) > 7 ? strlen(value) - 7 : 0), "_length")) {
-        // Warning about use of data_length before data statement
-        fprintf(stderr,
-                "(%d): Warning: Possible use of data statement length before data statement is defined\n      Workaround: forward declaration may be done by const %s=%s at beginning of code\n",
-                line, value, value);
-    }
-    if ((value[0] == '$') || (value[0] == '%') || (value[0] < (unsigned char) 0x3A)) {
-        return 1;
-    } else
-        return 0;
-}
-
-int number(unsigned char value) {
-    return ((int) value) - '0';
-}
-
-void removeCR(char *linenumber)    // remove trailing CR from string
-{
-    while ((linenumber[strlen(linenumber) - 1] == (unsigned char) 0x0A) ||
-           (linenumber[strlen(linenumber) - 1] == (unsigned char) 0x0D))
-        linenumber[strlen(linenumber) - 1] = '\0';
-}
-
-void remove_trailing_commas(char *linenumber)    // remove trailing commas from string
-{
-    int i;
-    for (i = strlen(linenumber) - 1; i > 0; i--) {
-        if ((linenumber[i] != ',') &&
-            (linenumber[i] != ' ') &&
-            (linenumber[i] != (unsigned char) 0x0A) && (linenumber[i] != (unsigned char) 0x0D))
-            break;
-        if (linenumber[i] == ',') {
-            linenumber[i] = ' ';
-            break;
-        }
-    }
 }
 
 
