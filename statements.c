@@ -9,7 +9,7 @@
 #include "keywords.h"
 #include "lexer.h"
 
-#include "gencode_dpcplus.h"
+#include "lib_dpcplus.h"
 
 char includespath[500];
 char user_includes[1000];
@@ -2148,38 +2148,22 @@ void doreturn(char **statement) {
     fprintf(outputFile, "	RTS\n");
 }
 
+/*
+ * if pfread(xpos,ypos) then
+ */
 void pfread(char **statement) {
-    char getindex0[200];
-    char getindex1[200];
-    int index = 0;
-
     invalidate_Areg();
 
-    index |= getindex(statement[3], &getindex0[0]);
-    index |= getindex(statement[4], &getindex1[0]) << 1;
-
     if (bs == 28) {
-        fprintf(outputFile, "	lda #<C_function\n");
-        fprintf(outputFile, "	sta DF0LOW\n");
-        fprintf(outputFile, "	lda #(>C_function) & $0F\n");
-        fprintf(outputFile, "	sta DF0HI\n");
-        fprintf(outputFile, "    lda #24\n");
-        fprintf(outputFile, "    sta DF0WRITE\n");
-
-        if (index & 1)
-            loadindex(&getindex0[0]);
-
-        fprintf(outputFile, "	LDA ");
-        printindex(statement[4], index & 1);
-        fprintf(outputFile, "	STA DF0WRITE\n");
-        if (index & 2)
-            loadindex(&getindex1[0]);
-
-        fprintf(outputFile, "	LDY ");
-        printindex(statement[6], index & 2);
-        jsr("pfread");
+        pfread_DPCPlus(statement);
 
     } else {
+        char getindex0[200];
+        char getindex1[200];
+        int index = 0;
+        index |= getindex(statement[3], &getindex0[0]);
+        index |= getindex(statement[4], &getindex1[0]) << 1;
+
         if (index & 1)
             loadindex(&getindex0[0]);
 
@@ -2191,55 +2175,45 @@ void pfread(char **statement) {
         fprintf(outputFile, "	LDY ");
         printindex(statement[6], index & 2);
 
-        fprintf(outputFile, "	STY DF0WRITE\n");
-        fprintf(outputFile, "	lda #255\n	sta CALLFUNCTION\n");
-        fprintf(outputFile, "    LDA DF0DATA\n");
+        jsr("pfread");
     }
 }
 
+
+
+/**
+ * pfpixel xpos ypos function
+ *
+ * @param statement
+ */
 void pfpixel(char **statement) {
-    char getindex0[200];
-    char getindex1[200];
+
     int on_off_flip = 0;
-    int index = 0;
     if (multisprite == 1) {
         prerror("Error: pfpixel not supported in multisprite kernel\n");
         exit(1);
     }
-    invalidate_Areg();
 
-    index |= getindex(statement[2], &getindex0[0]);
-    index |= getindex(statement[3], &getindex1[0]) << 1;
-
+    char *xpos = statement[2];
+    char *ypos = statement[3];
     if (!strncmp(statement[4], "flip", 2))
         on_off_flip = 2;
     else if (!strncmp(statement[4], "off", 2))
         on_off_flip = 1;
 
+    invalidate_Areg();
+
 
     if (bs == 28)        // DPC+
     {
-        fprintf(outputFile, "	lda #<C_function\n");
-        fprintf(outputFile, "	sta DF0LOW\n");
-        fprintf(outputFile, "	lda #(>C_function) & $0F\n");
-        fprintf(outputFile, "	sta DF0HI\n");
-        fprintf(outputFile, "	LDX #");
-        fprintf(outputFile, "%d\n	STX DF0WRITE\n	STX DF0WRITE\n", on_off_flip | 12);
-
-        if (index & 2)
-            loadindex(&getindex1[0]);
-        fprintf(outputFile, "	LDY ");
-        printindex(statement[3], index & 2);
-
-        fprintf(outputFile, "	STY DF0WRITE\n");
-        if (index & 1)
-            loadindex(&getindex0[0]);
-        fprintf(outputFile, "	LDA ");
-        printindex(statement[2], index & 1);
-        fprintf(outputFile, "	STA DF0WRITE\n");
-        fprintf(outputFile, "	lda #255\n	sta CALLFUNCTION\n");
+        pfpixel_DPCPlus(xpos, ypos, on_off_flip);
 
     } else {                // Standard and MultiSprite kernels
+        char getindex0[200];
+        char getindex1[200];
+        int index = 0;
+        index |= getindex(xpos, &getindex0[0]);
+        index |= getindex(ypos, &getindex1[0]) << 1;
 
         fprintf(outputFile, "	LDX #");
         fprintf(outputFile, "%d\n", on_off_flip);
@@ -2256,12 +2230,18 @@ void pfpixel(char **statement) {
     }
 }
 
+
+
+/**
+ * Playfield command to draw horizontal line
+ *
+ * pfhline xpos ypos endxpos function
+ *
+ * @param statement
+ */
 void pfhline(char **statement) {
-    char getindex0[200];
-    char getindex1[200];
-    char getindex2[200];
+
     int on_off_flip = 0;
-    int index = 0;
     if (multisprite == 1) {
         prerror("Error: pfhline not supported in multisprite kernel\n");
         exit(1);
@@ -2269,63 +2249,64 @@ void pfhline(char **statement) {
 
     invalidate_Areg();
 
-    if (bs == 28)        // DPC+
-    {
-        fprintf(outputFile, "	lda #<C_function\n");
-        fprintf(outputFile, "	sta DF0LOW\n");
-        fprintf(outputFile, "	lda #(>C_function) & $0F\n");
-        fprintf(outputFile, "	sta DF0HI\n");
-    }
-
-    index |= getindex(statement[2], &getindex0[0]);
-    index |= getindex(statement[3], &getindex1[0]) << 1;
-    index |= getindex(statement[4], &getindex2[0]) << 2;
-
-    fprintf(outputFile, "	LDX #");
+    char *xpos = statement[2];
+    char *ypos = statement[3];
+    char *endXpos = statement[4];
     if (!strncmp(statement[5], "flip", 2))
         on_off_flip = 2;
     else if (!strncmp(statement[5], "off", 2))
         on_off_flip = 1;
-    if (bs == 28)
-        fprintf(outputFile, "%d\n	STX DF0WRITE\n", on_off_flip | 8);
-    else
+
+
+    if (bs == 28)        // DPC+
+    {
+        pfhline_DPCPlus(xpos, ypos, endXpos, on_off_flip);
+
+    } else {
+        int index = 0;
+        char getindex0[200];
+        char getindex1[200];
+        char getindex2[200];
+        index |= getindex(xpos, &getindex0[0]);
+        index |= getindex(ypos, &getindex1[0]) << 1;
+        index |= getindex(endXpos, &getindex2[0]) << 2;
+
+        fprintf(outputFile, "	LDX #");
         fprintf(outputFile, "%d\n", on_off_flip);
 
-    if (index & 4)
-        loadindex(&getindex2[0]);
-    fprintf(outputFile, "	LDA ");
-    printindex(statement[4], index & 4);
-    if (bs == 28)
-        fprintf(outputFile, "	STA DF0WRITE\n");
-    else
+        if (index & 4)
+            loadindex(&getindex2[0]);
+        fprintf(outputFile, "	LDA ");
+        printindex(endXpos, index & 4);
+
         fprintf(outputFile, "	STA temp3\n");
 
-    if (index & 2)
-        loadindex(&getindex1[0]);
-    fprintf(outputFile, "	LDY ");
-    printindex(statement[3], index & 2);
-    if (bs == 28)
-        fprintf(outputFile, "	STY DF0WRITE\n");
+        if (index & 2)
+            loadindex(&getindex1[0]);
+        fprintf(outputFile, "	LDY ");
+        printindex(ypos, index & 2);
 
-    if (index & 1)
-        loadindex(&getindex0[0]);
-    fprintf(outputFile, "	LDA ");
-    printindex(statement[2], index & 1);
+        if (index & 1)
+            loadindex(&getindex0[0]);
+        fprintf(outputFile, "	LDA ");
+        printindex(xpos, index & 1);
 
-
-    if (bs == 28) {
-        fprintf(outputFile, "	STA DF0WRITE\n");
-        fprintf(outputFile, "	lda #255\n	sta CALLFUNCTION\n");
-    } else {
         jsr("pfhline");
+
     }
 }
 
+
+
+/**
+ * Playfield command to draw vertical line
+ *
+ * pfvline xpos ypos endypos function
+ *
+ * @param statement
+ */
 void pfvline(char **statement) {
-    char getindex0[200];
-    char getindex1[200];
-    char getindex2[200];
-    int index = 0;
+
     int on_off_flip = 0;
     if (multisprite == 1) {
         prerror("Error: pfvline not supported in multisprite kernel\n");
@@ -2334,54 +2315,48 @@ void pfvline(char **statement) {
 
     invalidate_Areg();
 
-    if (bs == 28)        // DPC+
-    {
-        fprintf(outputFile, "	lda #<C_function\n");
-        fprintf(outputFile, "	sta DF0LOW\n");
-        fprintf(outputFile, "	lda #(>C_function) & $0F\n");
-        fprintf(outputFile, "	sta DF0HI\n");
-    }
-
-    index |= getindex(statement[2], &getindex0[0]);
-    index |= getindex(statement[3], &getindex1[0]) << 1;
-    index |= getindex(statement[4], &getindex2[0]) << 2;
-
-    fprintf(outputFile, "	LDX #");
+    char *xpos = statement[2];
+    char *ypos = statement[3];
+    char *endYpos = statement[4];
     if (!strncmp(statement[5], "flip", 2))
         on_off_flip = 2;
     else if (!strncmp(statement[5], "off", 2))
         on_off_flip = 1;
-    if (bs == 28)
-        fprintf(outputFile, "%d\n	STX DF0WRITE\n", on_off_flip | 4);
-    else
+
+
+    if (bs == 28)        // DPC+
+    {
+        pfvline_DPCPlus(xpos, ypos, endYpos, on_off_flip);
+
+    } else {
+        char getindex0[200];
+        char getindex1[200];
+        char getindex2[200];
+        int index = 0;
+        index |= getindex(xpos, &getindex0[0]);
+        index |= getindex(ypos, &getindex1[0]) << 1;
+        index |= getindex(endYpos, &getindex2[0]) << 2;
+
+        fprintf(outputFile, "	LDX #");
         fprintf(outputFile, "%d\n", on_off_flip);
 
-    if (index & 4)
-        loadindex(&getindex2[0]);
-    fprintf(outputFile, "	LDA ");
-    printindex(statement[4], index & 4);
-    if (bs == 28)
-        fprintf(outputFile, "	STA DF0WRITE\n");
-    else
+        if (index & 4)
+            loadindex(&getindex2[0]);
+        fprintf(outputFile, "	LDA ");
+        printindex(endYpos, index & 4);
         fprintf(outputFile, "	STA temp3\n");
 
-    if (index & 2)
-        loadindex(&getindex1[0]);
-    fprintf(outputFile, "	LDY ");
-    printindex(statement[3], index & 2);
-    if (bs == 28)
-        fprintf(outputFile, "	STY DF0WRITE\n");
+        if (index & 2)
+            loadindex(&getindex1[0]);
+        fprintf(outputFile, "	LDY ");
+        printindex(ypos, index & 2);
 
-    if (index & 1)
-        loadindex(&getindex0[0]);
-    fprintf(outputFile, "	LDA ");
-    printindex(statement[2], index & 1);
-
-    if (bs == 28) {
-        fprintf(outputFile, "	STA DF0WRITE\n");
-        fprintf(outputFile, "	lda #255\n	sta CALLFUNCTION\n");
-    } else
+        if (index & 1)
+            loadindex(&getindex0[0]);
+        fprintf(outputFile, "	LDA ");
+        printindex(xpos, index & 1);
         jsr("pfvline");
+    }
 }
 
 

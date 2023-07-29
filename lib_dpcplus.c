@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "gencode_dpcplus.h"
+#include "lib_dpcplus.h"
 #include "statements.h"
 
 
@@ -232,3 +232,146 @@ void playfieldcolorandheight_DPCPlus(char **statement) {
     fprintf(outputFile, "	LDA #1\n");
     fprintf(outputFile, "	STA CALLFUNCTION\n");
 }
+
+void pfread_DPCPlus(char **statement) {
+    FILE *outputFile = getOutputFile();
+    char getindex0[200];
+    char getindex1[200];
+    int index = 0;
+    index |= getindex(statement[3], &getindex0[0]);
+    index |= getindex(statement[4], &getindex1[0]) << 1;
+
+    fprintf(outputFile, "	lda #<C_function\n");
+    fprintf(outputFile, "	sta DF0LOW\n");
+    fprintf(outputFile, "	lda #(>C_function) & $0F\n");
+    fprintf(outputFile, "	sta DF0HI\n");
+    fprintf(outputFile, "    lda #24\n");
+    fprintf(outputFile, "    sta DF0WRITE\n");
+
+    if (index & 1)
+        loadindex(&getindex0[0]);
+
+    fprintf(outputFile, "	LDA ");
+    printindex(statement[4], index & 1);
+    fprintf(outputFile, "	STA DF0WRITE\n");
+    if (index & 2)
+        loadindex(&getindex1[0]);
+
+    fprintf(outputFile, "	LDY ");
+    printindex(statement[6], index & 2);
+
+    fprintf(outputFile, "	STY DF0WRITE\n");
+    fprintf(outputFile, "	lda #255\n	sta CALLFUNCTION\n");
+    fprintf(outputFile, "    LDA DF0DATA\n");
+}
+
+void pfpixel_DPCPlus(char *xpos, char *ypos, int on_off_flip) {
+    FILE *outputFile = getOutputFile();
+    char getindex0[200];
+    char getindex1[200];
+    int index = 0;
+
+    index |= getindex(xpos, &getindex0[0]);
+    index |= getindex(ypos, &getindex1[0]) << 1;
+
+    fprintf(outputFile, "	lda #<C_function\n");
+    fprintf(outputFile, "	sta DF0LOW\n");
+    fprintf(outputFile, "	lda #(>C_function) & $0F\n");
+    fprintf(outputFile, "	sta DF0HI\n");
+    fprintf(outputFile, "	LDX #");
+    fprintf(outputFile, "%d\n	STX DF0WRITE\n	STX DF0WRITE\n", on_off_flip | 12);
+
+    if (index & 2)
+        loadindex(&getindex1[0]);
+    fprintf(outputFile, "	LDY ");
+    printindex(ypos, index & 2);
+
+    fprintf(outputFile, "	STY DF0WRITE\n");
+    if (index & 1)
+        loadindex(&getindex0[0]);
+    fprintf(outputFile, "	LDA ");
+    printindex(xpos, index & 1);
+    fprintf(outputFile, "	STA DF0WRITE\n");
+    fprintf(outputFile, "	lda #255\n	sta CALLFUNCTION\n");
+}
+
+void pfhline_DPCPlus(char *xpos, char *ypos, char *endXpos, int on_off_flip) {
+    FILE *outputFile = getOutputFile();
+    int index = 0;
+    char getindex0[200];
+    char getindex1[200];
+    char getindex2[200];
+    index |= getindex(xpos, &getindex0[0]);
+    index |= getindex(ypos, &getindex1[0]) << 1;
+    index |= getindex(endXpos, &getindex2[0]) << 2;
+
+    fprintf(outputFile, "	lda #<C_function\n");
+    fprintf(outputFile, "	sta DF0LOW\n");
+    fprintf(outputFile, "	lda #(>C_function) & $0F\n");
+    fprintf(outputFile, "	sta DF0HI\n");
+
+    fprintf(outputFile, "	LDX #");
+    fprintf(outputFile, "%d\n	STX DF0WRITE\n", on_off_flip | 8);
+
+    if (index & 4)
+        loadindex(&getindex2[0]);
+    fprintf(outputFile, "	LDA ");
+    printindex(endXpos, index & 4);
+
+    fprintf(outputFile, "	STA DF0WRITE\n");
+
+    if (index & 2)
+        loadindex(&getindex1[0]);
+    fprintf(outputFile, "	LDY ");
+    printindex(ypos, index & 2);
+
+    fprintf(outputFile, "	STY DF0WRITE\n");
+
+    if (index & 1)
+        loadindex(&getindex0[0]);
+    fprintf(outputFile, "	LDA ");
+    printindex(xpos, index & 1);
+
+    fprintf(outputFile, "	STA DF0WRITE\n");
+    fprintf(outputFile, "	lda #255\n	sta CALLFUNCTION\n");
+}
+
+void pfvline_DPCPlus(char *xpos, char *ypos, char *endYpos, int on_off_flip) {
+    FILE *outputFile = getOutputFile();
+    char getindex0[200];
+    char getindex1[200];
+    char getindex2[200];
+    int index = 0;
+    index |= getindex(xpos, &getindex0[0]);
+    index |= getindex(ypos, &getindex1[0]) << 1;
+    index |= getindex(endYpos, &getindex2[0]) << 2;
+
+    fprintf(outputFile, "	lda #<C_function\n");
+    fprintf(outputFile, "	sta DF0LOW\n");
+    fprintf(outputFile, "	lda #(>C_function) & $0F\n");
+    fprintf(outputFile, "	sta DF0HI\n");
+
+    fprintf(outputFile, "	LDX #");
+    fprintf(outputFile, "%d\n	STX DF0WRITE\n", on_off_flip | 4);
+
+    if (index & 4)
+        loadindex(&getindex2[0]);
+    fprintf(outputFile, "	LDA ");
+    printindex(endYpos, index & 4);
+    fprintf(outputFile, "	STA DF0WRITE\n");
+
+    if (index & 2)
+        loadindex(&getindex1[0]);
+    fprintf(outputFile, "	LDY ");
+    printindex(ypos, index & 2);
+    fprintf(outputFile, "	STY DF0WRITE\n");
+
+    if (index & 1)
+        loadindex(&getindex0[0]);
+    fprintf(outputFile, "	LDA ");
+    printindex(xpos, index & 1);
+
+    fprintf(outputFile, "	STA DF0WRITE\n");
+    fprintf(outputFile, "	lda #255\n	sta CALLFUNCTION\n");
+}
+
