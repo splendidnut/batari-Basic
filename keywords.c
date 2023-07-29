@@ -209,7 +209,7 @@ void keywords(char **cstatement) {
             // add goto to it
             if (i > 190) {
                 i = 190;
-                fprintf(stderr, "%d: Cannot find end of line - statement may have been truncated\n", linenum());
+                fprintf(stderr, "%d: Cannot find end of line - statement may have been truncated\n", bbgetlinenumber());
             }
             //strcpy(orstatement[i++],":");
             strcpy(orstatement[i++], "goto");

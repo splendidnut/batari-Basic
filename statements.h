@@ -30,10 +30,12 @@ extern FILE *getOutputFile();
 extern bool read_source_line(char *data);
 extern void trim_string(char *data, bool addEol);
 
+// useful utility functions
 extern void removeCR(char *);
 extern int printimmed(char *);
 extern int isimmed(char *);
-
+extern int bbgetlinenumber();
+extern void incline();
 
 // functions for debugging
 extern void print_statement_breakdown(char **stmtList);
@@ -74,14 +76,12 @@ extern void create_includes(char *);
 extern void endfunction();
 extern void invalidate_Areg();
 extern int getcondpart();
-extern int linenum();
 extern int islabel(char **);
 extern int islabelelse(char **);
 extern void compressdata(char **, int, int);
 extern void shiftdata(char **, int);
 extern int findpoint(char *);
 extern int getindex(char *, char *);
-extern int bbgetlinenumber();
 extern void doend();
 extern void output_sprite_data();
 extern void output_playfield_data();
@@ -89,7 +89,6 @@ extern void printindex(char *, int);
 extern void loadindex(char *);
 extern void jsr(char *);
 extern int findlabel(char **, int i);
-extern void incline();
 extern void init_includes(char *path);
 extern void callfunction(char **);
 extern void ongoto(char **);

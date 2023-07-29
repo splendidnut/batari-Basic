@@ -201,11 +201,13 @@ void currdir_foundmsg(char *foundfile) {
 }
 
 
-int linenum() {
-    // returns current line number in source
-    return line;
+void incline() {
+    line++;
 }
 
+int bbgetlinenumber() {     // returns current line number in source
+    return line;
+}
 
 int number(unsigned char value) {
     return ((int) value) - '0';
@@ -1648,14 +1650,6 @@ void callfunction(char **statement) {
 
     strcpy(Areg, "invalid");
 
-}
-
-void incline() {
-    line++;
-}
-
-int bbgetlinenumber() {
-    return line;
 }
 
 void invalidate_Areg() {
