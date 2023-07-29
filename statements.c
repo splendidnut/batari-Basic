@@ -260,7 +260,7 @@ void process_gfx_data(const char *label, const char *dataTypeName) {
         line++;
         if (!strncmp(data, "end\0", 3))
             break;
-        sprintf(sprite_data[sprite_index++], "	.byte %s", data);
+        sprintf(sprite_data[sprite_index++], "	.byte %s\n", data);
         l++;
     }
     if (l > 255) {
@@ -2163,12 +2163,11 @@ void pfread(char **statement) {
 
         if (index & 1)
             loadindex(&getindex0[0]);
-
         fprintf(outputFile, "	LDA ");
         printindex(statement[4], index & 1);
+
         if (index & 2)
             loadindex(&getindex1[0]);
-
         fprintf(outputFile, "	LDY ");
         printindex(statement[6], index & 2);
 
@@ -2607,7 +2606,7 @@ void player(char **statement) {
         if (!strncmp(data, "end\0", 3))
             break;
         height++;
-        sprintf(sprite_data[sprite_index++], "	.byte %s", data);
+        sprintf(sprite_data[sprite_index++], "	.byte %s\n", data);
 
     }
 
