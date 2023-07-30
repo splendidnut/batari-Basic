@@ -584,6 +584,15 @@ void playfieldcolorandheight(char **statement) {
 
 }
 
+/**
+ * Bank-switching aware JSR call used for calling bBasic library subroutines.
+ *
+ * One routine does a JSR to bank 1.
+ * The other does a JSR to the last_bank.
+ *
+ * @param location
+ * @param locBank
+ */
 
 void jsrbank(char *location, int locBank) {
     int theLastBank = locBank > 0 ? locBank : last_bank;
