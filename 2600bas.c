@@ -7,6 +7,7 @@
 #include "statements.h"
 #include "keywords.h"
 #include "lexer.h"
+#include "linker.h"
 #include <stdbool.h>
 
 #define BB_VERSION_INFO "batari Basic v1.8 (c)2023\n"
@@ -193,5 +194,17 @@ int main(int argc, char *argv[]) {
     output_redefvars_file(redefVars_filename);
     create_includes(includes_file);
     fprintf(stderr, "2600 Basic compilation complete.\n");
+
+    char includesPath[500];
+    strcpy(includesPath, path);
+    char slashChar = includesPath[strlen(includesPath) - 1];
+    if ((slashChar == '\\') || (slashChar == '/')) {
+        strcat(includesPath, "includes/");
+    } else {
+        strcat(includesPath, "/includes/");
+    }
+
+    link(includesPath);
+    fprintf(stderr, "2600 Basic linking complete.\n");
     return 0;
 }
