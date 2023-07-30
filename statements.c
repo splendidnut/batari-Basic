@@ -595,11 +595,9 @@ void playfieldcolorandheight(char **statement) {
  */
 
 void jsrbank(char *location, int locBank) {
-    int theLastBank = locBank > 0 ? locBank : last_bank;
-
     // determines whether to use the standard jsr (for 2k/4k or bankswitched stuff in current bank)
     // or to switch banks before calling the routine
-    if ((!bs) || (bank == last_bank)) {
+    if ((!bs) || (bank == locBank)) {
         fprintf(outputFile, " jsr %s\n", location);
         return;
     }
@@ -629,7 +627,7 @@ void jsrbank(char *location, int locBank) {
     fprintf(outputFile, " pha\n");
 
     // select bank to switch to
-    fprintf(outputFile, " ldx #%d\n", last_bank);
+    fprintf(outputFile, " ldx #%d\n", locBank);
     fprintf(outputFile, " jmp BS_jsr\n");
     fprintf(outputFile, "ret_point%d\n", numjsrs);
 
@@ -640,7 +638,7 @@ void jsrbank1(char *location) {     // specifically call code located in bank 1
 }
 
 void jsr(char *location) {          // call code in another bank (last_bank)
-    jsrbank(location, 0);
+    jsrbank(location, last_bank);
 }
 
 void playfield(char **statement) {
