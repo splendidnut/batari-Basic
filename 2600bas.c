@@ -71,7 +71,7 @@ void processDefs(char *code) {
         strcpy(code, mycode);
 }
 
-int main(int argc, char *argv[]) {
+void compile(FILE *outFile) {
     char **statement;
     int i, j;
     int cntUnnamedLabel = 0;
@@ -79,60 +79,11 @@ int main(int argc, char *argv[]) {
     bool failedToRead;
     char code[500];
     char displaycode[500];
-    char *includes_file = "default.inc";
-    char *redefVars_filename = "2600basic_variable_redefs.h";
-    char *path = 0;
-    char *outputFilename = 0;
-    char *mySourceFileName = 0;
 
-    // get command line arguments
-    while ((i = getopt(argc, argv, "i:o:s:r:v")) != -1) {
-        switch (i) {
-            case 'i':
-                path = strdup(optarg);
-                break;
-            case 'o':
-                outputFilename = strdup(optarg);
-                break;
-            case 's':
-                mySourceFileName = strdup(optarg);
-                break;
-
-            case 'r':
-                //redefVars_filename = (char *) malloc(100);
-                //strcpy(redefVars_filename, optarg);
-                redefVars_filename = strdup(optarg);
-                break;
-            case 'v':
-                printf("%s", BB_VERSION_INFO);
-                exit(0);
-            case '?':
-                fprintf(stderr, "usage: %s -r <variable redefs file> -i <includes path>\n", argv[0]);
-                exit(1);
-        }
-    }
-    init_statement_processor();
-
-    fprintf(stderr, BB_VERSION_INFO);
-
-    // provide statement processor with input stream
-    FILE *mySourceFile;
-    if (mySourceFileName) {
-        mySourceFile = fopen(mySourceFileName, "r");
-    } else {
-        mySourceFile = stdin;
-    }
-    use_source_file(mySourceFile);
-
-    // create + open output file
-    if (!outputFilename) outputFilename = "bB.asm";
-    FILE *outFile = fopen(outputFilename, "w");
     use_output_file(outFile);
 
     // label for start of game
     fprintf(outFile, "game\n");
-
-    init_includes(path);
 
     //----  allocated memory for statement token list
     statement = (char **) malloc(sizeof(char *) * 200);
@@ -187,13 +138,42 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
     }
-    output_sprite_data();
-    output_playfield_data();
+}
 
-    write_footer();
-    output_redefvars_file(redefVars_filename);
-    create_includes(includes_file);
-    fprintf(stderr, "2600 Basic compilation complete.\n");
+int main(int argc, char *argv[]) {
+    int i;
+    char *includes_file = "default.inc";
+    char *redefVars_filename = "2600basic_variable_redefs.h";
+    char *path = 0;
+    char *outputFilename = 0;
+    char *mySourceFileName = 0;
+
+    // get command line arguments
+    while ((i = getopt(argc, argv, "i:o:s:r:v")) != -1) {
+        switch (i) {
+            case 'i':
+                path = strdup(optarg);
+                break;
+            case 'o':
+                outputFilename = strdup(optarg);
+                break;
+            case 's':
+                mySourceFileName = strdup(optarg);
+                break;
+
+            case 'r':
+                //redefVars_filename = (char *) malloc(100);
+                //strcpy(redefVars_filename, optarg);
+                redefVars_filename = strdup(optarg);
+                break;
+            case 'v':
+                printf("%s", BB_VERSION_INFO);
+                exit(0);
+            case '?':
+                fprintf(stderr, "usage: %s -r <variable redefs file> -i <includes path>\n", argv[0]);
+                exit(1);
+        }
+    }
 
     char includesPath[500];
     strcpy(includesPath, path);
@@ -203,6 +183,36 @@ int main(int argc, char *argv[]) {
     } else {
         strcat(includesPath, "/includes/");
     }
+
+    init_statement_processor();
+
+    fprintf(stderr, BB_VERSION_INFO);
+
+    // provide statement processor with input stream
+    FILE *mySourceFile;
+    if (mySourceFileName) {
+        mySourceFile = fopen(mySourceFileName, "r");
+    } else {
+        mySourceFile = stdin;
+    }
+    use_source_file(mySourceFile);
+
+    // create + open output file
+    if (!outputFilename) outputFilename = "bB.asm";
+    FILE *outFile = fopen(outputFilename, "w");
+
+    //-------------------------
+    // compile
+
+    init_includes(path);
+    compile(outFile);
+    output_sprite_data();
+    output_playfield_data();
+    write_footer();
+
+    output_redefvars_file(redefVars_filename);
+    create_includes(includes_file);
+    fprintf(stderr, "2600 Basic compilation complete.\n");
 
     link(includesPath);
     fprintf(stderr, "2600 Basic linking complete.\n");
