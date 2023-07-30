@@ -568,7 +568,7 @@ void playfieldcolorandheight(char **statement) {
                             break;
                         }
                     }
-//fprintf(stderr,"%s\n",sprite_data[pfcolorindexsave+pfoffset]);
+                    //fprintf(stderr,"%s\n",sprite_data[pfcolorindexsave+pfoffset]);
                     strcpy(rewritedata, sprite_data[pfcolorindexsave + pfoffset]);
                     rewritedata[i - 1] = '\0';
                     if (i < 200)
@@ -584,42 +584,54 @@ void playfieldcolorandheight(char **statement) {
 
 }
 
-void jsrbank1(char *location) {
-// bankswitched jsr to bank 1
-// determines whether to use the standard jsr (for 2k/4k or bankswitched stuff in current bank)
-// or to switch banks before calling the routine
-    if ((!bs) || (bank == 1)) {
+
+void jsrbank(char *location, int locBank) {
+    int theLastBank = locBank > 0 ? locBank : last_bank;
+
+    // determines whether to use the standard jsr (for 2k/4k or bankswitched stuff in current bank)
+    // or to switch banks before calling the routine
+    if ((!bs) || (bank == last_bank)) {
         fprintf(outputFile, " jsr %s\n", location);
         return;
     }
-// we need to switch banks
+
+    // we need to switch banks
     fprintf(outputFile, " sta temp7\n");
-// first create virtual return address
-    // if it's 64k banks, store the bank directly in the high nibble
+
+    // first create virtual return address
     if (bs == 64)
         fprintf(outputFile, " lda #(((>(ret_point%d-1)) & $0F) | $%1x0) \n", ++numjsrs, bank - 1);
     else
         fprintf(outputFile, " lda #>(ret_point%d-1)\n", ++numjsrs);
     fprintf(outputFile, " pha\n");
-
-
     fprintf(outputFile, " lda #<(ret_point%d-1)\n", numjsrs);
     fprintf(outputFile, " pha\n");
-// next we must push the place to jsr to
+
+    // next we must push the place to jsr to
     fprintf(outputFile, " lda #>(%s-1)\n", location);
     fprintf(outputFile, " pha\n");
     fprintf(outputFile, " lda #<(%s-1)\n", location);
     fprintf(outputFile, " pha\n");
-// now store regs on stack
+
+    // now store regs on stack
     fprintf(outputFile, " lda temp7\n");
     fprintf(outputFile, " pha\n");
     fprintf(outputFile, " txa\n");
     fprintf(outputFile, " pha\n");
-// select bank to switch to
-    fprintf(outputFile, " ldx #1\n");
+
+    // select bank to switch to
+    fprintf(outputFile, " ldx #%d\n", last_bank);
     fprintf(outputFile, " jmp BS_jsr\n");
     fprintf(outputFile, "ret_point%d\n", numjsrs);
 
+}
+
+void jsrbank1(char *location) {     // specifically call code located in bank 1
+    jsrbank(location, 1);
+}
+
+void jsr(char *location) {          // call code in another bank (last_bank)
+    jsrbank(location, 0);
 }
 
 void playfield(char **statement) {
@@ -807,44 +819,7 @@ void playfield(char **statement) {
 
 }
 
-void jsr(char *location) {
-    // determines whether to use the standard jsr (for 2k/4k or bankswitched stuff in current bank)
-    // or to switch banks before calling the routine
-    if ((!bs) || (bank == last_bank)) {
-        fprintf(outputFile, " jsr %s\n", location);
-        return;
-    }
 
-    // we need to switch banks
-    fprintf(outputFile, " sta temp7\n");
-
-    // first create virtual return address
-    if (bs == 64)
-        fprintf(outputFile, " lda #(((>(ret_point%d-1)) & $0F) | $%1x0) \n", ++numjsrs, bank - 1);
-    else
-        fprintf(outputFile, " lda #>(ret_point%d-1)\n", ++numjsrs);
-    fprintf(outputFile, " pha\n");
-    fprintf(outputFile, " lda #<(ret_point%d-1)\n", numjsrs);
-    fprintf(outputFile, " pha\n");
-
-    // next we must push the place to jsr to
-    fprintf(outputFile, " lda #>(%s-1)\n", location);
-    fprintf(outputFile, " pha\n");
-    fprintf(outputFile, " lda #<(%s-1)\n", location);
-    fprintf(outputFile, " pha\n");
-
-    // now store regs on stack
-    fprintf(outputFile, " lda temp7\n");
-    fprintf(outputFile, " pha\n");
-    fprintf(outputFile, " txa\n");
-    fprintf(outputFile, " pha\n");
-
-    // select bank to switch to
-    fprintf(outputFile, " ldx #%d\n", last_bank);
-    fprintf(outputFile, " jmp BS_jsr\n");
-    fprintf(outputFile, "ret_point%d\n", numjsrs);
-
-}
 
 
 int switchjoy(char *input_source) {
@@ -4809,6 +4784,7 @@ void set(char **statement) {
             ROMpf = 1;
         } else
             prerror("set kernel: kernel name unknown or unspecified\n");
+        fprintf(stderr, "Using kernel: %s\n", optionValue);
     } else if (!strncmp(optionName, "debug\0", 5)) {
         if (!strncmp(optionValue, "cyclescore\0", 10)) {
             strcpy(redefined_variables[numredefvars++], "debugscore = 1");
