@@ -373,3 +373,29 @@ void pfvline_DPCPlus(char *xpos, char *ypos, char *endYpos, int on_off_flip) {
     fprintf(outputFile, "	lda #255\n	sta CALLFUNCTION\n");
 }
 
+
+/*void scorecolors(char **statement) {
+    if (!isDPCPlus) {
+        prerror("Error: scorecolors is only supported in the DPC+ kernel\n");
+        exit(1);
+    }
+
+    FILE *outputFile = getOutputFile();
+    int i = 0;    //height can change
+    char data[200];
+    fprintf(outputFile, "	lda #<scoredata\n");
+    fprintf(outputFile, "	STA DF0LOW\n");
+
+    fprintf(outputFile, "	lda #((>scoredata) & $0f)\n");
+    fprintf(outputFile, "	STA DF0HI\n");
+
+    int scoreColorInts[9], scoreColorCnt;
+    process_data_list(scoreColorInts, &scoreColorCnt, "scorecolor", 8);
+
+    for (i = 0; i < scoreColorCnt; ++i) {
+        fprintf(outputFile, "	lda ");
+        printimmed(scoreColorInts[i]);
+        fprintf(outputFile, "%d\n", scoreColorInts[i]);
+        fprintf(outputFile, "	sta DF0WRITE\n");
+    }
+}*/

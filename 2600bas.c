@@ -8,6 +8,7 @@
 #include "keywords.h"
 #include "lexer.h"
 #include "linker.h"
+#include "lib_gfx.h"
 #include <stdbool.h>
 
 #define BB_VERSION_INFO "batari Basic v1.8 (c)2023\n"

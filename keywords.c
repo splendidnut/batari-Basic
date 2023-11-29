@@ -2,6 +2,7 @@
 
 #include "keywords.h"
 #include "statements.h"
+#include "lib_gfx.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -26,7 +27,7 @@ void keywords(char **cstatement) {
     int i, j, k;
     int colons = 0;
     int currentcolon = 0;
-    char **pass2elstatement;
+
     char **elstatement;
     char **orstatement;
     char **swapstatement;
@@ -154,10 +155,12 @@ void keywords(char **cstatement) {
             break;
     }
     if (foundelse) {
+        char **pass2elstatement;
         if (door)
             pass2elstatement = orstatement;
         else
             pass2elstatement = cstatement;
+
         for (i = 1; i < 200; ++i)
             if (!strncmp(pass2elstatement[i], "else\0", 4)) {
                 foundelse = i;

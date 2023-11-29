@@ -3,17 +3,21 @@
 #ifndef STATEMENTS_H
 #define STATEMENTS_H
 
-#define _readpaddle 1
-#define _player1colors 2
-#define _playercolors 4
-#define _no_blank_lines 8
-#define _pfcolors 16
-#define _pfheights 32
-#define _background 64
 #define MAX_EXTRAS 5
 
 #include <stdbool.h>
 #include <stdio.h>
+
+enum {
+ _readpaddle = 1,
+ _player1colors = 2,
+ _playercolors = 4,
+ _no_blank_lines = 8,
+ _pfcolors = 16,
+ _pfheights = 32,
+ _background = 64
+};
+
 
 // share sprite data collection buffer with other modules
 enum { SPRITE_DATA_ENTRY_SIZE = 50,
@@ -36,6 +40,9 @@ extern int printimmed(char *);
 extern int isimmed(char *);
 extern int bbgetlinenumber();
 extern void incline();
+extern void goto_last_bank();
+extern void set_banking(int rom_kb, int lastBankNum);
+extern bool hasSuperchip();
 
 // functions for debugging
 extern void print_statement_breakdown(char **stmtList);
@@ -46,6 +53,7 @@ extern void prerror(char *);
 
 // shared processing functions
 extern int process_gfx_data(const char *label, const char *dataTypeName);
+extern void process_data_list(char *dst, int *dstCnt, const char *dataTypeName, int maxDataLength);
 
 // statement processing functions
 extern void doextra(char *);
@@ -54,16 +62,12 @@ extern void do_stack(char **);
 extern void do_pull(char **);
 extern void do_push(char **);
 extern void domacro(char **);
-extern void lives(char **);
-extern void scorecolors(char **);
-extern void playfield(char **);
-extern void bkcolors(char **);
-extern void playfieldcolorandheight(char **);
+
 extern void vblank();
 extern void doreboot();
 extern void dopop();
 extern void doasm();
-extern void pfclear(char **);
+
 extern void data(char **);
 extern void sdata(char **);
 extern void newbank(int);
@@ -83,10 +87,10 @@ extern void shiftdata(char **, int);
 extern int findpoint(char *);
 extern int getindex(char *, char *);
 extern void doend();
-extern void output_sprite_data();
-extern void output_playfield_data();
+
 extern void printindex(char *, int);
 extern void loadindex(char *);
+extern void jsrbank1(char *location);
 extern void jsr(char *);
 extern int findlabel(char **, int i);
 extern void init_includes(char *path);
@@ -104,12 +108,9 @@ extern void dolet(char **);
 extern void dec(char **);
 extern void rem(char **);
 extern void set(char **);
-extern void pfpixel(char **);
-extern void pfhline(char **);
-extern void pfvline(char **);
-extern void pfscroll(char **);
-extern void player(char **);
-extern void drawscreen(void);
+
+
+extern void add_redefined_variable(char *varName, char *varValue);
 extern void output_redefvars_file(char *);
 
 #endif

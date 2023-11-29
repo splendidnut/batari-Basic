@@ -9,6 +9,7 @@
 #include "keywords.h"
 #include "lexer.h"
 
+#include "lib_gfx.h"
 #include "lib_dpcplus.h"
 
 char includespath[500];
@@ -23,38 +24,32 @@ char sprite_data[SPRITE_DATA_ENTRY_COUNT][SPRITE_DATA_ENTRY_SIZE];
 
 int bs;
 int bank;
-
-int ongosub;
-int condpart;
-int ROMpf;
+enum KernelType kernelType;
+int kernel_options;
 int smartbranching;
 int superchip;
 int last_bank;
-int multisprite;
-int lifekernel;
-int numfors;
+int optimization;
+
 int extra;
-int extralabel;
 int extraactive;
 int macroactive;
-int sprite_index;
-int playfield_index[50];
-int playfield_number;
-int pfdata[50][256];
+
+int ongosub;
+int condpart;
+
+int numfors;
 char forvar[50][50];
 char forlabel[50][50];
 char forstep[50][50];
 char forend[50][50];
+
 char fixpoint44[2][50][50];
 char fixpoint88[2][50][50];
 
-int pfcolorindexsave;
-int pfcolornumber;
-int kernel_options;
 int numfixpoint44;
 int numfixpoint88;
 int numredefvars;
-int optimization;
 int numconstants;
 int line;
 int numjsrs;
@@ -65,9 +60,13 @@ int branchtargetnumber;
 
 void init_statement_processor() {
     condpart = 0;
+
     last_bank = 0;        // last bank when bs is enabled (0 for 2k/4k)
     bank = 1;            // current bank: 1 or 2 for 8k
     bs = 0;            // bankswtiching type; 0=none
+
+    kernelType = STANDARD_KERNEL;
+
     ongosub = 0;
     superchip = 0;
     optimization = 0;
@@ -75,7 +74,7 @@ void init_statement_processor() {
     line = 0;
     numfixpoint44 = 0;
     numfixpoint88 = 0;
-    ROMpf = 0;
+
     ors = 0;
     numjsrs = 0;
     numfors = 0;
@@ -85,13 +84,8 @@ void init_statement_processor() {
     numconstants = 0;
     branchtargetnumber = 0;
     doingfunction = 0;
-    sprite_index = 0;
-    multisprite = 0;
-    lifekernel = 0;
-    playfield_number = 0;
-    playfield_index[0] = 0;
+
     extra = 0;
-    extralabel = 0;
     extraactive = 0;
     macroactive = 0;
 }
@@ -159,8 +153,9 @@ void trim_string(char *data, bool addEol) {
 }
 
 void print_statement_breakdown(char **stmtList) {
+    int idx;
     fprintf(stderr, "#%d:", bbgetlinenumber());
-    for (int idx=0; idx < 50; idx++) {
+    for (idx=0; idx < 50; idx++) {
         char *stmt = stmtList[idx];
         if (stmt[0] == 0) break;
         fprintf(stderr, "token: '%s'\n", stmt);
@@ -264,40 +259,23 @@ int isimmed(char *value) {
         return 0;
 }
 
-/**
- * Process a DATA chunk that's specifically for graphics:  sprites, playfield, etc.
- *
- * @return length of data
- */
-int process_gfx_data(const char *label, const char *dataTypeName) {
-    char data[200];
-    int len = 0;
 
-    sprintf(sprite_data[sprite_index++], "%s\n", label);
-    while (len < 256) {
-        if ((read_source_line(data)
-             || ((data[0] < (unsigned char) 0x3A) && (data[0] > (unsigned char) 0x2F))) && (data[0] != 'e')) {
-
-            // error message
-            char errMissingEnd[200];
-            sprintf(errMissingEnd, "Error: Missing \"end\" keyword at end of %s declaration\n", dataTypeName);
-            prerror(errMissingEnd);
-            exit(1);
-        }
-        line++;
-        if (!strncmp(data, "end\0", 3))
-            break;
-        sprintf(sprite_data[sprite_index++], "	.byte %s\n", data);
-        len++;
-    }
-    if (len > 255) {
-        char errTooMuchData[200];
-        sprintf(errTooMuchData, "Error: too much data in %s declaration\n", dataTypeName);
-        prerror(errTooMuchData);
-    }
-    return len;
+void goto_last_bank() {// go to the last bank before barfing the graphics
+    int i;
+    if (!bank)
+        bank = 1;
+    for (i = bank; i < last_bank; ++i)
+        newbank(i + 1);
 }
 
+void set_banking(int rom_kb, int lastBankNum) {
+    bs = rom_kb;
+    last_bank = lastBankNum;
+}
+
+bool hasSuperchip() {
+    return superchip;
+}
 
 //------------------------------------------------------------------------------------------
 //------------------------- batariBasic commands
@@ -315,288 +293,7 @@ void vblank() {
 }
 
 
-void pfclear(char **statement) {
-    char getindex0[200];
-    int index = 0;
 
-    invalidate_Areg();
-
-    if (bs == 28) {
-        pfclear_DPCPlus(statement);
-        return;
-    }
-
-    if ((!statement[2][0]) || (statement[2][0] == ':'))
-        fprintf(outputFile, "	LDA #0\n");
-    else {
-        index = getindex(statement[2], &getindex0[0]);
-        if (index)
-            loadindex(&getindex0[0]);
-        fprintf(outputFile, "	LDA ");
-        printindex(statement[2], index);
-    }
-    removeCR(statement[1]);
-    jsr(statement[1]);
-}
-
-
-void bkcolors(char **statement) {
-    if (multisprite == 2) {
-        bkcolors_DPCPlus(statement);
-        return;            // get out
-    } else {
-        prerror("Error: bkcolors only works in DPC+ kernels\n");
-        exit(1);
-    }
-}
-
-
-void process_pfheight() {
-    char data[200];
-    int pfpos = 0, indexsave;
-    bool bothColorAndHeight = ((kernel_options & 48) == (_pfcolors | _pfheights));
-
-    if ((kernel_options & 48) == _pfheights) {
-
-        sprintf(sprite_data[sprite_index++], " ifconst pfres\n");
-        sprintf(sprite_data[sprite_index++], " if (<*) > 235-pfres\n");
-        sprintf(sprite_data[sprite_index++], "	repeat (265+pfres-<*)\n	.byte 0\n");
-        sprintf(sprite_data[sprite_index++], "	repend\n	endif\n");
-        sprintf(sprite_data[sprite_index++], "   if (<*) < (pfres+9)\n");
-        sprintf(sprite_data[sprite_index++], "	repeat ((pfres+9)-(<*))\n	.byte 0\n");
-        sprintf(sprite_data[sprite_index++], "	repend\n");
-        sprintf(sprite_data[sprite_index++], "   endif\n");
-        sprintf(sprite_data[sprite_index++], " else\n");
-        sprintf(sprite_data[sprite_index++], "   if (<*) > 223\n");
-        sprintf(sprite_data[sprite_index++], "	repeat (277-<*)\n	.byte 0\n");
-        sprintf(sprite_data[sprite_index++], "	repend\n");
-        sprintf(sprite_data[sprite_index++], "   endif\n");
-        sprintf(sprite_data[sprite_index++], "   if (<*) < 21\n");
-        sprintf(sprite_data[sprite_index++], "	repeat (21-(<*))\n	.byte 0\n");
-        sprintf(sprite_data[sprite_index++], "	repend\n");
-        sprintf(sprite_data[sprite_index++], "   endif\n");
-        sprintf(sprite_data[sprite_index++], " endif\n");
-        sprintf(sprite_data[sprite_index], "pfcolorlabel%d\n", sprite_index);
-        indexsave = sprite_index;
-        sprite_index++;
-        while (1) {
-            if ((read_source_line(data)
-                 || ((data[0] < (unsigned char) 0x3A) && (data[0] > (unsigned char) 0x2F))) && (data[0] != 'e')) {
-
-                prerror("Error: Missing \"end\" keyword at end of pfheight declaration\n");
-                exit(1);
-            }
-            line++;
-            if (!strncmp(data, "end\0", 3))
-                break;
-            removeCR(data);
-            if (!pfpos)
-                fprintf(outputFile, " lda #%s\n sta playfieldpos\n", data);
-            else
-                sprintf(sprite_data[sprite_index++], " .byte %s\n", data);
-            pfpos++;
-        }
-        fprintf(outputFile, " ifconst pfres\n");
-        fprintf(outputFile, " lda #>(pfcolorlabel%d-pfres-9)\n", indexsave);
-        fprintf(outputFile, " else\n");
-        fprintf(outputFile, " lda #>(pfcolorlabel%d-21)\n", indexsave);
-        fprintf(outputFile, " endif\n");
-        fprintf(outputFile, " sta pfcolortable+1\n");
-        fprintf(outputFile, " ifconst pfres\n");
-        fprintf(outputFile, " lda #<(pfcolorlabel%d-pfres-9)\n", indexsave);
-        fprintf(outputFile, " else\n");
-        fprintf(outputFile, " lda #<(pfcolorlabel%d-21)\n", indexsave);
-        fprintf(outputFile, " endif\n");
-        fprintf(outputFile, " sta pfcolortable\n");
-    } else if (!bothColorAndHeight) {
-        prerror("PFheights kernel option not set");
-        exit(1);
-    } else            //pf color and heights enabled
-    {
-        sprintf(sprite_data[sprite_index++], " ifconst pfres\n");
-        sprintf(sprite_data[sprite_index++], " if (<*) > (254-pfres)\n");
-        sprintf(sprite_data[sprite_index++], "	align 256\n	endif\n");
-        sprintf(sprite_data[sprite_index++], " if (<*) < (136-pfres*pfwidth)\n");
-        sprintf(sprite_data[sprite_index++], "	repeat ((136-pfres*pfwidth)-(<*))\n	.byte 0\n");
-        sprintf(sprite_data[sprite_index++], "	repend\n	endif\n");
-        sprintf(sprite_data[sprite_index++], " else\n");
-        sprintf(sprite_data[sprite_index++], " if (<*) > 206\n");
-        sprintf(sprite_data[sprite_index++], "	align 256\n	endif\n");
-        sprintf(sprite_data[sprite_index++], " if (<*) < 88\n");
-        sprintf(sprite_data[sprite_index++], "	repeat (88-(<*))\n	.byte 0\n");
-        sprintf(sprite_data[sprite_index++], "	repend\n	endif\n");
-        sprintf(sprite_data[sprite_index++], " endif\n");
-        sprintf(sprite_data[sprite_index++], "playfieldcolorandheight\n");
-
-        pfcolorindexsave = sprite_index;
-        while (1) {
-            if ((read_source_line(data)
-                 || ((data[0] < (unsigned char) 0x3A) && (data[0] > (unsigned char) 0x2F))) && (data[0] != 'e')) {
-
-                prerror("Error: Missing \"end\" keyword at end of pfheight declaration\n");
-                exit(1);
-            }
-            line++;
-            if (!strncmp(data, "end\0", 3))
-                break;
-            removeCR(data);
-            if (!pfpos)
-                fprintf(outputFile, " lda #%s\n sta playfieldpos\n", data);
-            else
-                sprintf(sprite_data[sprite_index++], " .byte %s,0,0,0\n", data);
-            pfpos++;
-        }
-    }
-}
-
-void process_pfcolor(char **statement) {
-    char data[200];
-    char rewritedata[200];
-    int i = 0, j = 0, l;
-    int pfpos = 0, pfoffset = 0, indexsave;
-    char label[200];
-
-    if (multisprite == 2) {
-        playfieldcolorandheight_DPCPlus(statement);
-
-        return;        // get out
-    }
-
-    bool bothColorAndHeight = ((kernel_options & 48) == (_pfcolors | _pfheights));
-
-    if ((kernel_options & 48) == _pfcolors) {
-        if (!pfcolornumber) {
-            sprintf(sprite_data[sprite_index++], " ifconst pfres\n");
-            sprintf(sprite_data[sprite_index++], " if (<*) > (254-pfres*pfwidth)\n");
-            sprintf(sprite_data[sprite_index++], "	align 256\n	endif\n");
-            sprintf(sprite_data[sprite_index++], " if (<*) < (136-pfres*pfwidth)\n");
-            sprintf(sprite_data[sprite_index++], "	repeat ((136-pfres*pfwidth)-(<*))\n	.byte 0\n");
-            sprintf(sprite_data[sprite_index++], "	repend\n	endif\n");
-            sprintf(sprite_data[sprite_index++], " else\n");
-
-            sprintf(sprite_data[sprite_index++], " if (<*) > 206\n");
-            sprintf(sprite_data[sprite_index++], "	align 256\n	endif\n");
-            sprintf(sprite_data[sprite_index++], " if (<*) < 88\n");
-            sprintf(sprite_data[sprite_index++], "	repeat (88-(<*))\n	.byte 0\n");
-            sprintf(sprite_data[sprite_index++], "	repend\n	endif\n");
-            sprintf(sprite_data[sprite_index++], " endif\n");
-            sprintf(sprite_data[sprite_index], "pfcolorlabel%d\n", sprite_index);
-            sprite_index++;
-        }
-        //indexsave=sprite_index;
-        pfoffset = 1;
-        while (1) {
-            if ((read_source_line(data)
-                 || ((data[0] < (unsigned char) 0x3A) && (data[0] > (unsigned char) 0x2F))) && (data[0] != 'e')) {
-                prerror("Error: Missing \"end\" keyword at end of pfcolor declaration\n");
-                exit(1);
-            }
-            line++;
-            if (!strncmp(data, "end\0", 3))
-                break;
-            removeCR(data);
-            if (!pfpos) {
-                fprintf(outputFile, " lda #%s\n sta COLUPF\n", data);
-                if (!pfcolornumber)
-                    pfcolorindexsave = sprite_index - 1;
-                pfcolornumber = (pfcolornumber + 1) % 4;
-                pfpos++;
-            } else {
-                if (pfcolornumber != 1)    // add to existing table
-//        if ((pfcolornumber%3)!=1) // add to existing table (possible correction?)
-                {
-                    j = 0;
-                    i = 0;
-                    while (j != (pfcolornumber + 3) % 4) {
-                        if (sprite_data[pfcolorindexsave + pfoffset][i++] == ',')
-                            j++;
-                        if (i > 199) {
-                            prerror("Warning: size of subsequent pfcolor tables should match\n");
-                            break;
-                        }
-                    }
-//fprintf(stderr,"%s\n",sprite_data[pfcolorindexsave+pfoffset]);
-                    strcpy(rewritedata, sprite_data[pfcolorindexsave + pfoffset]);
-                    rewritedata[i - 1] = '\0';
-                    if (i < 200)
-                        sprintf(sprite_data[pfcolorindexsave + pfoffset++], "%s,%s%s", rewritedata, data,
-                                rewritedata + i + 1);
-                } else    // new table
-                {
-                    sprintf(sprite_data[sprite_index++], " .byte %s,0,0,0\n", data);
-                    // pad with zeros - later we can fill this with additional color data if defined
-                }
-            }
-        }
-        fprintf(outputFile, " ifconst pfres\n");
-        fprintf(outputFile, " lda #>(pfcolorlabel%d-%d+pfres*pfwidth)\n", pfcolorindexsave,
-               85 + 48 - pfcolornumber - ((((pfcolornumber << 1) | (pfcolornumber << 2)) ^ 4) & 4));
-        fprintf(outputFile, " else\n");
-        fprintf(outputFile, " lda #>(pfcolorlabel%d-%d)\n", pfcolorindexsave,
-               85 - pfcolornumber - ((((pfcolornumber << 1) | (pfcolornumber << 2)) ^ 4) & 4));
-        fprintf(outputFile, " endif\n");
-        fprintf(outputFile, " sta pfcolortable+1\n");
-        fprintf(outputFile, " ifconst pfres\n");
-        fprintf(outputFile, " lda #<(pfcolorlabel%d-%d+pfres*pfwidth)\n", pfcolorindexsave,
-               85 + 48 - pfcolornumber - ((((pfcolornumber << 1) | (pfcolornumber << 2)) ^ 4) & 4));
-        fprintf(outputFile, " else\n");
-        fprintf(outputFile, " lda #<(pfcolorlabel%d-%d)\n", pfcolorindexsave,
-               85 - pfcolornumber - ((((pfcolornumber << 1) | (pfcolornumber << 2)) ^ 4) & 4));
-        fprintf(outputFile, " endif\n");
-        fprintf(outputFile, " sta pfcolortable\n");
-    } else if (!bothColorAndHeight) {
-        prerror("PFcolors kernel option not set");
-        exit(1);
-    } else {            // pf color fixed table
-        while (1) {
-            if ((read_source_line(data)
-                 || ((data[0] < (unsigned char) 0x3A) && (data[0] > (unsigned char) 0x2F))) && (data[0] != 'e')) {
-                prerror("Error: Missing \"end\" keyword at end of pfcolor declaration\n");
-                exit(1);
-            }
-            line++;
-            if (!strncmp(data, "end\0", 3))
-                break;
-            removeCR(data);
-
-            if (!pfpos)
-                fprintf(outputFile, " lda #%s\n sta COLUPF\n", data);
-            else {
-                j = 0;
-                i = 0;
-                while (!j) {
-                    if (sprite_data[pfcolorindexsave + pfoffset][i++] == ',')
-                        j++;
-                    if (i > 199) {
-                        prerror("Warning: size of subsequent pfcolor tables should match\n");
-                        break;
-                    }
-                }
-                //fprintf(stderr,"%s\n",sprite_data[pfcolorindexsave+pfoffset]);
-                strcpy(rewritedata, sprite_data[pfcolorindexsave + pfoffset]);
-                rewritedata[i - 1] = '\0';
-                if (i < 200)
-                    sprintf(sprite_data[pfcolorindexsave + pfoffset++], "%s,%s%s", rewritedata, data,
-                            rewritedata + i + 1);
-            }
-            pfpos++;
-        }
-
-    }
-}
-
-void playfieldcolorandheight(char **statement) {
-
-    // PF colors and/or heights
-    // PFheights use offset of 21-31
-    // PFcolors use offset of 84-124
-    // if used together: playfieldblocksize-88, playfieldcolor-87
-    if (!strncasecmp(statement[1], "pfheights:\0", 9)) {
-        process_pfheight();
-    } else {           // has to be pfcolors
-        process_pfcolor(statement);
-    }
-}
 
 /**
  * Bank-switching aware JSR call used for calling bBasic library subroutines.
@@ -654,179 +351,6 @@ void jsrbank1(char *location) {     // specifically call code located in bank 1
 void jsr(char *location) {          // call code in another bank (last_bank)
     jsrbank(location, last_bank);
 }
-
-void playfield(char **statement) {
-    // for specifying a ROM playfield
-    char zero = '.';
-    char one = 'X';
-    int i, j, k, height = 0;
-    char data[200];
-    char pframdata[255][200];
-    if ((unsigned char) statement[3][0] > (unsigned char) 0x20)
-        zero = statement[3][0];
-    if ((unsigned char) statement[4][0] > (unsigned char) 0x20)
-        one = statement[4][0];
-
-// read data until we get an end
-// stored in global var and output at end of code
-
-    while (1) {
-        bool failed_to_read = read_source_line(data);
-        if (!failed_to_read) trim_string(data, true);
-
-        if (failed_to_read || ((data[0] != zero) && (data[0] != one) && (data[0] != 'e'))) {
-            prerror("Error: Missing \"end\" keyword at end of playfield declaration\n");
-            //fprintf(stderr, "  Found: '%c' '%c'\n", data[0], zero);
-            //fprintf(stderr, " failed_to_read: %s\n", failed_to_read ? "true" : "false");
-            exit(1);
-        }
-        line++;
-        if (!strncmp(data, "end\0", 3))
-            break;
-        if (ROMpf)        // if playfield is in ROM:
-        {
-            pfdata[playfield_number][playfield_index[playfield_number]] = 0;
-            for (i = 0; i < 32; ++i) {
-                if ((data[i] != zero) && (data[i] != one))
-                    break;
-                pfdata[playfield_number][playfield_index[playfield_number]] <<= 1;
-                if (data[i] == one)
-                    pfdata[playfield_number][playfield_index[playfield_number]] |= 1;
-            }
-            playfield_index[playfield_number]++;
-        } else {
-            strcpy(pframdata[height++], data);
-        }
-
-    }
-
-
-    if (ROMpf)            // if playfield is in ROM:
-    {
-        fprintf(outputFile, "	LDA #<PF1_data%d\n", playfield_number);
-        fprintf(outputFile, "	STA PF1pointer\n");
-        fprintf(outputFile, "	LDA #>PF1_data%d\n", playfield_number);
-        fprintf(outputFile, "	STA PF1pointer+1\n");
-
-        fprintf(outputFile, "	LDA #<PF2_data%d\n", playfield_number);
-        fprintf(outputFile, "	STA PF2pointer\n");
-        fprintf(outputFile, "	LDA #>PF2_data%d\n", playfield_number);
-        fprintf(outputFile, "	STA PF2pointer+1\n");
-        playfield_number++;
-    } else if (bs != 28)        // RAM pf, as in std_kernel, not DPC+
-    {
-        fprintf(outputFile, "  ifconst pfres\n");
-//      fprintf(outputFile, "    ldx #4*pfres-1\n");
-        fprintf(outputFile, "	  ldx #(%d>pfres)*(pfres*pfwidth-1)+(%d<=pfres)*%d\n", height, height, height * 4 - 1);
-        fprintf(outputFile, "  else\n");
-//      fprintf(outputFile, "    ldx #47\n");
-//      fprintf(outputFile, "          ldx #%d\n",height*4-1>47?47:height*4-1);
-        fprintf(outputFile, "	  ldx #((%d*pfwidth-1)*((%d*pfwidth-1)<47))+(47*((%d*pfwidth-1)>=47))\n", height, height, height);
-        fprintf(outputFile, "  endif\n");
-        fprintf(outputFile, "	jmp pflabel%d\n", playfield_number);
-
-        // no need to align to page boundaries
-
-        fprintf(outputFile, "PF_data%d\n", playfield_number);
-        for (j = 0; j < height; ++j)    // stored right side up
-        {
-            fprintf(outputFile, "	.byte %%");
-            // the below should be changed to check for zero instead of defaulting to it
-            for (k = 0; k < 8; ++k)
-                if (pframdata[j][k] == one)
-                    fprintf(outputFile, "1");
-                else
-                    fprintf(outputFile, "0");
-            fprintf(outputFile, ", %%");
-            for (k = 15; k >= 8; k--)
-                if (pframdata[j][k] == one)
-                    fprintf(outputFile, "1");
-                else
-                    fprintf(outputFile, "0");
-            fprintf(outputFile, "\n	if (pfwidth>2)\n	.byte %%");
-            for (k = 16; k < 24; ++k)
-                if (pframdata[j][k] == one)
-                    fprintf(outputFile, "1");
-                else
-                    fprintf(outputFile, "0");
-            fprintf(outputFile, ", %%");
-            for (k = 31; k >= 24; k--)
-                if (pframdata[j][k] == one)
-                    fprintf(outputFile, "1");
-                else
-                    fprintf(outputFile, "0");
-            fprintf(outputFile, "\n endif\n");
-        }
-
-        fprintf(outputFile, "pflabel%d\n", playfield_number);
-        fprintf(outputFile, "	lda PF_data%d,x\n", playfield_number);
-        if (superchip) {
-            //        fprintf(outputFile, "  ifconst pfres\n");
-            //      fprintf(outputFile, "      sta playfield+48-pfres*pfwidth-128,x\n");
-            //    fprintf(outputFile, "  else\n");
-            fprintf(outputFile, "	sta playfield-128,x\n");
-            //  fprintf(outputFile, "  endif\n");
-        } else {
-            //        fprintf(outputFile, "  ifconst pfres\n");
-            //      fprintf(outputFile, "      sta playfield+48-pfres*pfwidth,x\n");
-            //    fprintf(outputFile, "  else\n");
-            fprintf(outputFile, "	sta playfield,x\n");
-            //  fprintf(outputFile, "  endif\n");
-        }
-        fprintf(outputFile, "	dex\n");
-        fprintf(outputFile, "	bpl pflabel%d\n", playfield_number);
-        playfield_number++;
-
-    } else            // RAM pf in DPC+
-    {
-        playfield_number++;
-
-        // height is pf data height
-        fprintf(outputFile, " ldy #%d\n", height);
-        fprintf(outputFile, "	LDA #<PF_data%d\n", playfield_number);
-        fprintf(outputFile, "	LDX #((>PF_data%d) & $0f) | (((>PF_data%d) / 2) & $70)\n", playfield_number, playfield_number);
-        jsrbank1("pfsetup");
-
-        // use sprite data recorder for pf data
-        sprintf(sprite_data[sprite_index++], "PF_data%d\n", playfield_number);
-
-        char binData[9] = "00000000";
-        for (j = 0; j < height; ++j)    // stored right side up
-        {
-            i = 0;
-            for (k = 31; k >= 24; k--) binData[i++] = (pframdata[j][k] == one) ? '1' : '0';
-            sprintf(data, "	.byte %%%s\n", binData);
-            strcpy(sprite_data[sprite_index++], data);
-        }
-
-        for (j = 0; j < height; ++j)    // stored right side up
-        {
-            i = 0;
-            for (k = 16; k < 24; ++k) binData[i++] = (pframdata[j][k] == one) ? '1' : '0';
-            sprintf(data, "	.byte %%%s\n", binData);
-            strcpy(sprite_data[sprite_index++], data);
-        }
-
-        for (j = 0; j < height; ++j)    // stored right side up
-        {
-            i = 0;
-            for (k = 15; k >= 8; k--) binData[i++] = (pframdata[j][k] == one) ? '1' : '0';
-            sprintf(data, "	.byte %%%s\n", binData);
-            strcpy(sprite_data[sprite_index++], data);
-        }
-
-        for (j = 0; j < height; ++j)    // stored right side up
-        {
-            i = 0;
-            for (k = 0; k < 8; ++k) binData[i++] = (pframdata[j][k] == one) ? '1' : '0';
-            sprintf(data, "	.byte %%%s\n", binData);
-            strcpy(sprite_data[sprite_index++], data);
-        }
-
-    }
-
-}
-
 
 
 
@@ -1188,56 +712,6 @@ void init_includes(char *path) {
     user_includes[0] = '\0';
 }
 
-void output_sprite_data() {
-    int i, j, k;
-
-    // go to the last bank before barfing the graphics
-    if (!bank)
-        bank = 1;
-    for (i = bank; i < last_bank; ++i)
-        newbank(i + 1);
-
-    for (i = 0; i < sprite_index; ++i) {
-        fprintf(outputFile, "%s", sprite_data[i]);
-    }
-}
-
-void output_playfield_data() {
-    int i,j,k;
-    // now we must regurgitate the PF data (if ROM-based playfield)
-
-    if (ROMpf) {
-        for (i = 0; i < playfield_number; ++i) {
-            fprintf(outputFile, " if ((>(*+%d)) > (>*))\n ALIGN 256\n endif\n", playfield_index[i]);
-            fprintf(outputFile, "PF1_data%d\n", i);
-            for (j = playfield_index[i] - 1; j >= 0; j--) {
-                fprintf(outputFile, " .byte %%");
-
-                for (k = 15; k > 7; k--) {
-                    if (pfdata[i][j] & (1 << k))
-                        fprintf(outputFile, "1");
-                    else
-                        fprintf(outputFile, "0");
-                }
-                fprintf(outputFile, "\n");
-            }
-
-            fprintf(outputFile, " if ((>(*+%d)) > (>*))\n ALIGN 256\n endif\n", playfield_index[i]);
-            fprintf(outputFile, "PF2_data%d\n", i);
-            for (j = playfield_index[i] - 1; j >= 0; j--) {
-                fprintf(outputFile, " .byte %%");
-                for (k = 0; k < 8; ++k)    // reversed bit order!
-                {
-                    if (pfdata[i][j] & (1 << k))
-                        fprintf(outputFile, "1");
-                    else
-                        fprintf(outputFile, "0");
-                }
-                fprintf(outputFile, "\n");
-            }
-        }
-    }
-}
 
 void create_includes(char *includesfile) {
     FILE *includesread, *includeswrite;
@@ -2011,257 +1485,7 @@ void doreturn(char **statement) {
     fprintf(outputFile, "	RTS\n");
 }
 
-/*
- * if pfread(xpos,ypos) then
- */
-void pfread(char **statement) {
-    invalidate_Areg();
 
-    if (bs == 28) {
-        pfread_DPCPlus(statement);
-
-    } else {
-        char getindex0[200];
-        char getindex1[200];
-        int index = 0;
-        index |= getindex(statement[3], &getindex0[0]);
-        index |= getindex(statement[4], &getindex1[0]) << 1;
-
-        if (index & 1)
-            loadindex(&getindex0[0]);
-        fprintf(outputFile, "	LDA ");
-        printindex(statement[4], index & 1);
-
-        if (index & 2)
-            loadindex(&getindex1[0]);
-        fprintf(outputFile, "	LDY ");
-        printindex(statement[6], index & 2);
-
-        jsr("pfread");
-    }
-}
-
-
-
-/**
- * pfpixel xpos ypos function
- *
- * @param statement
- */
-void pfpixel(char **statement) {
-
-    int on_off_flip = 0;
-    if (multisprite == 1) {
-        prerror("Error: pfpixel not supported in multisprite kernel\n");
-        exit(1);
-    }
-
-    char *xpos = statement[2];
-    char *ypos = statement[3];
-    if (!strncmp(statement[4], "flip", 2))
-        on_off_flip = 2;
-    else if (!strncmp(statement[4], "off", 2))
-        on_off_flip = 1;
-
-    invalidate_Areg();
-
-
-    if (bs == 28)        // DPC+
-    {
-        pfpixel_DPCPlus(xpos, ypos, on_off_flip);
-
-    } else {                // Standard and MultiSprite kernels
-        char getindex0[200];
-        char getindex1[200];
-        int index = 0;
-        index |= getindex(xpos, &getindex0[0]);
-        index |= getindex(ypos, &getindex1[0]) << 1;
-
-        fprintf(outputFile, "	LDX #");
-        fprintf(outputFile, "%d\n", on_off_flip);
-
-        if (index & 2)
-            loadindex(&getindex1[0]);
-        fprintf(outputFile, "	LDY ");
-        printindex(statement[3], index & 2);
-        if (index & 1)
-            loadindex(&getindex0[0]);
-        fprintf(outputFile, "	LDA ");
-        printindex(statement[2], index & 1);
-        jsr("pfpixel");
-    }
-}
-
-
-
-/**
- * Playfield command to draw horizontal line
- *
- * pfhline xpos ypos endxpos function
- *
- * @param statement
- */
-void pfhline(char **statement) {
-
-    int on_off_flip = 0;
-    if (multisprite == 1) {
-        prerror("Error: pfhline not supported in multisprite kernel\n");
-        exit(1);
-    }
-
-    invalidate_Areg();
-
-    char *xpos = statement[2];
-    char *ypos = statement[3];
-    char *endXpos = statement[4];
-    if (!strncmp(statement[5], "flip", 2))
-        on_off_flip = 2;
-    else if (!strncmp(statement[5], "off", 2))
-        on_off_flip = 1;
-
-
-    if (bs == 28)        // DPC+
-    {
-        pfhline_DPCPlus(xpos, ypos, endXpos, on_off_flip);
-
-    } else {
-        int index = 0;
-        char getindex0[200];
-        char getindex1[200];
-        char getindex2[200];
-        index |= getindex(xpos, &getindex0[0]);
-        index |= getindex(ypos, &getindex1[0]) << 1;
-        index |= getindex(endXpos, &getindex2[0]) << 2;
-
-        fprintf(outputFile, "	LDX #");
-        fprintf(outputFile, "%d\n", on_off_flip);
-
-        if (index & 4)
-            loadindex(&getindex2[0]);
-        fprintf(outputFile, "	LDA ");
-        printindex(endXpos, index & 4);
-
-        fprintf(outputFile, "	STA temp3\n");
-
-        if (index & 2)
-            loadindex(&getindex1[0]);
-        fprintf(outputFile, "	LDY ");
-        printindex(ypos, index & 2);
-
-        if (index & 1)
-            loadindex(&getindex0[0]);
-        fprintf(outputFile, "	LDA ");
-        printindex(xpos, index & 1);
-
-        jsr("pfhline");
-
-    }
-}
-
-
-
-/**
- * Playfield command to draw vertical line
- *
- * pfvline xpos ypos endypos function
- *
- * @param statement
- */
-void pfvline(char **statement) {
-
-    int on_off_flip = 0;
-    if (multisprite == 1) {
-        prerror("Error: pfvline not supported in multisprite kernel\n");
-        exit(1);
-    }
-
-    invalidate_Areg();
-
-    char *xpos = statement[2];
-    char *ypos = statement[3];
-    char *endYpos = statement[4];
-    if (!strncmp(statement[5], "flip", 2))
-        on_off_flip = 2;
-    else if (!strncmp(statement[5], "off", 2))
-        on_off_flip = 1;
-
-
-    if (bs == 28)        // DPC+
-    {
-        pfvline_DPCPlus(xpos, ypos, endYpos, on_off_flip);
-
-    } else {
-        char getindex0[200];
-        char getindex1[200];
-        char getindex2[200];
-        int index = 0;
-        index |= getindex(xpos, &getindex0[0]);
-        index |= getindex(ypos, &getindex1[0]) << 1;
-        index |= getindex(endYpos, &getindex2[0]) << 2;
-
-        fprintf(outputFile, "	LDX #");
-        fprintf(outputFile, "%d\n", on_off_flip);
-
-        if (index & 4)
-            loadindex(&getindex2[0]);
-        fprintf(outputFile, "	LDA ");
-        printindex(endYpos, index & 4);
-        fprintf(outputFile, "	STA temp3\n");
-
-        if (index & 2)
-            loadindex(&getindex1[0]);
-        fprintf(outputFile, "	LDY ");
-        printindex(ypos, index & 2);
-
-        if (index & 1)
-            loadindex(&getindex0[0]);
-        fprintf(outputFile, "	LDA ");
-        printindex(xpos, index & 1);
-        jsr("pfvline");
-    }
-}
-
-
-
-void pfscroll(char **statement) {
-    char *scrollDir = statement[2];
-
-    invalidate_Areg();
-    if (bs == 28) {
-        pfscroll_DPCPlus(statement, line);
-        return;
-    }
-    if (multisprite == 1) {
-        fprintf(outputFile, "	LDA #");
-        if (!strncmp(scrollDir, "up\0", 2))
-            fprintf(outputFile, "0\n");
-        else if (!strncmp(scrollDir, "down", 2))
-            fprintf(outputFile, "1\n");
-        else {
-            fprintf(stderr, "(%d) pfscroll direction unknown in multisprite kernel\n", line);
-            exit(1);
-        }
-    } else {
-        fprintf(outputFile, "	LDA #");
-        if (!strncmp(scrollDir, "left", 2))
-            fprintf(outputFile, "0\n");
-        else if (!strncmp(scrollDir, "right", 2))
-            fprintf(outputFile, "1\n");
-        else if (!strncmp(scrollDir, "upup\0", 4))
-            fprintf(outputFile, "6\n");
-        else if (!strncmp(scrollDir, "downdown", 6))
-            fprintf(outputFile, "8\n");
-        else if (!strncmp(scrollDir, "up\0", 2))
-            fprintf(outputFile, "2\n");
-        else if (!strncmp(scrollDir, "down", 2))
-            fprintf(outputFile, "4\n");
-        else {
-            fprintf(stderr, "(%d) pfscroll direction unknown\n", line);
-            exit(1);
-        }
-    }
-    jsr("pfscroll");
-}
 
 void doasm() {
     char data[200];
@@ -2337,262 +1561,6 @@ void doend() {
         prerror("extraneous end statement found");
 }
 
-/**
- * Process player graphics / player color data blocks
- *
- * Processes the following types of data statements:
- *           player0:
- *           player1color:
- *           player1-9:
- *           player1-9color:
- *
- * @param statement
- */
-void player(char **statement) {
-    int height = 0, i = 0;    //calculating sprite height
-    int doingcolor = 0;        //doing player colors?
-    char label[200];
-    char j;
-    char data[200];
-    int heightrecord;
-
-    //--- process parameters and figure out which type of statement this is
-    char playerNum = statement[1][6];      // player number
-    char *param = statement[2];     //-- will be ':' or '-'
-    char *param2 = statement[3];    //-- will be secondary value for range
-    bool isSimpleLabel = (param[0] == ':');
-    bool isRangeLabel = ((param[0] == '-') && (statement[4][0] == ':'));
-    bool isMultiplePlayers = (isRangeLabel) && (playerNum != '0');
-    char rangeEnd   = param2[0];
-
-    if (statement[1][7] == 'c')
-        doingcolor = 1;
-    if (isRangeLabel && (param2[1] == 'c')) //-- if secondary parameter has 'color' after it
-        doingcolor = 1;
-
-    // create labels for asm code
-    if (!doingcolor)
-        sprintf(label, "player%s_%c\n", statement[0], playerNum);
-    else
-        sprintf(label, "playercolor%s_%c\n", statement[0], playerNum);
-    removeCR(label);
-
-    if (multisprite == 2) {
-        // handle DPC+ version
-        if (playerNum != '0') {
-            fprintf(outputFile, "	lda #<(playerpointers+%d)\n", (playerNum - 49) * 2 + 18 * doingcolor);
-            fprintf(outputFile, "	sta DF0LOW\n");
-            fprintf(outputFile, "	lda #(>(playerpointers+%d)) & $0F\n", (playerNum - 49) * 2 + 18 * doingcolor);
-            fprintf(outputFile, "	sta DF0HI\n");
-        }
-        fprintf(outputFile, "	LDX #<%s\n", label);
-        if (playerNum != '0') {
-            fprintf(outputFile, "	STX DF0WRITE\n");
-        } else {
-            if (!doingcolor) {
-                fprintf(outputFile, "	STX player%cpointerlo\n", playerNum);
-            } else {
-                fprintf(outputFile, "	STX player%ccolor\n", playerNum);
-            }
-        }
-        fprintf(outputFile, "	LDA #((>%s) & $0f) | (((>%s) / 2) & $70)\n", label, label);    // DPC+
-        if (playerNum != '0') {
-            fprintf(outputFile, "	STA DF0WRITE\n");
-        } else {
-            if (!doingcolor) {
-                fprintf(outputFile, "	STA player%cpointerhi\n", playerNum);
-            } else {
-                fprintf(outputFile, "	STA player%ccolor+1\n", playerNum);
-            }
-        }
-
-        if (isMultiplePlayers)    // multiple players
-        {
-            for (j = playerNum; j < rangeEnd; j++) {
-                fprintf(outputFile, "	STX DF0WRITE\n");
-                fprintf(outputFile, "	STA DF0WRITE\n");    // creates multiple "copies" of single sprite
-            }
-        }
-
-    } else {
-        fprintf(outputFile, "	LDX #<%s\n", label);
-        if (!doingcolor) {
-            fprintf(outputFile, "	STX player%cpointerlo\n", playerNum);
-        } else {
-            fprintf(outputFile, "	STX player%ccolor\n", playerNum);
-        }
-        fprintf(outputFile, "	LDA #>%s\n", label);
-        if (!doingcolor)
-            fprintf(outputFile, "	STA player%cpointerhi\n", playerNum);
-        else
-            fprintf(outputFile, "	STA player%ccolor+1\n", playerNum);
-
-    }
-
-    //fprintf(outputFile, "    JMP .%sjump%c\n",statement[0],playerNum);
-
-    // insert DASM stuff to prevent page-wrapping of player data
-    // stick this in a data file instead of displaying
-
-    if (multisprite != 2)    // DPC+ has no pages to wrap
-    {
-        heightrecord = sprite_index++;
-        sprite_index += 2;
-        // record index for creation of the line below
-    }
-    if (multisprite == 1) {
-        sprintf(sprite_data[sprite_index++],
-                " if (<*) < 90\n");    // is 90 enough? could this be the cause of page wrapping issues at the bottom of the screen?
-        // This is potentially wasteful, therefore the user now has an option to use this space for data or code
-        // (Not an ideal way, but a way nonetheless)
-        if (optimization & 2) {
-            sprintf(sprite_data[sprite_index++], "extralabel%d\n", extralabel);
-            sprintf(sprite_data[sprite_index++], " ifconst extra\n");
-            for (i = 4; i >= 0; i--) {
-                if (i == 4)
-                    sprintf(sprite_data[sprite_index++], " if (extra > %d)\n", i);
-                else
-                    sprintf(sprite_data[sprite_index++], " else\n if (extra > %d)\n", i);
-                sprintf(sprite_data[sprite_index++], "extra set extra-1\n");
-                sprintf(sprite_data[sprite_index++], " extra%d\n", i);
-            }
-            sprintf(sprite_data[sprite_index++], " endif\n endif\n endif\n endif\n endif\n endif\n");
-
-            sprintf(sprite_data[sprite_index++], " echo [90-(<*)]d,\"bytes found in extra%d", extralabel);
-            sprintf(sprite_data[sprite_index++], " (\",[(*-extralabel%d)]d,\"used)\"\n", extralabel++);
-            sprintf(sprite_data[sprite_index++], " if (<*) < 90\n");    // do it again
-        }
-        sprintf(sprite_data[sprite_index++], "	repeat (90-<*)\n	.byte 0\n");
-        sprintf(sprite_data[sprite_index++], "	repend\n	endif\n");
-        if (optimization & 2)
-            sprintf(sprite_data[sprite_index++], "	endif\n");
-    }                // potential bug: should this go after the below page wrapping stuff to prevent possible issues?
-
-    sprintf(sprite_data[sprite_index++], "%s\n", label);
-    if (multisprite == 1 && playerNum == '0') {
-        sprintf(sprite_data[sprite_index++], "	.byte 0\n");
-    }
-
-    while (1) {
-        if ((read_source_line(data)
-             || ((data[0] < (unsigned char) 0x3A) && (data[0] > (unsigned char) 0x2F))) && (data[0] != 'e')) {
-
-            prerror("Error: Missing \"end\" keyword at end of player declaration\n");
-            exit(1);
-        }
-        line++;
-        if (!strncmp(data, "end\0", 3))
-            break;
-        height++;
-        sprintf(sprite_data[sprite_index++], "	.byte %s\n", data);
-
-    }
-
-
-    if (multisprite == 1 && playerNum == '0')
-        height++;
-
-// record height and add page-wrap prevention
-    if (multisprite != 2)    // DPC+ has no pages to wrap
-    {
-        sprintf(sprite_data[heightrecord], " if (<*) > (<(*+%d))\n", height - 1);    //+1);
-        sprintf(sprite_data[heightrecord + 1], "	repeat ($100-<*)\n	.byte 0\n");
-        sprintf(sprite_data[heightrecord + 2], "	repend\n	endif\n");
-    }
-    if (multisprite == 1 && playerNum == '0')
-        height--;
-
-//  fprintf(outputFile, ".%sjump%c\n",statement[0],playerNum);
-    if (multisprite == 1)
-        fprintf(outputFile, "	LDA #%d\n", height + 1);    //2);
-    else if ((multisprite == 2) && (!doingcolor))
-        fprintf(outputFile, "	LDA #%d\n", height);
-    else if (!doingcolor)
-        fprintf(outputFile, "	LDA #%d\n", height - 1);    // added -1);
-    if (!doingcolor)
-        fprintf(outputFile, "	STA player%cheight\n", playerNum);
-
-    if ((statement[1][7] == '-') && (multisprite == 2) && (playerNum != '0'))    // multiple players
-    {
-        for (j = statement[1][6] + 1; j <= statement[1][8]; j++) {
-            if (!doingcolor)
-                fprintf(outputFile, "	STA player%cheight\n", j);
-        }
-    }
-
-
-}
-
-void lives(char **statement) {
-    int i = 0;
-    char label[200];
-    char data[200];
-    if (!lifekernel) {
-        lifekernel = 1;
-        //strcpy(redefined_variables[numredefvars++],"lifekernel = 1");
-    }
-
-    sprintf(label, "lives__%s\n", statement[0]);
-    removeCR(label);
-
-    fprintf(outputFile, "	LDA #<%s\n", label);
-    fprintf(outputFile, "	STA lifepointer\n");
-
-    fprintf(outputFile, "	LDA lifepointer+1\n");
-    fprintf(outputFile, "	AND #$E0\n");
-    fprintf(outputFile, "	ORA #(>%s)&($1F)\n", label);
-    fprintf(outputFile, "	STA lifepointer+1\n");
-
-    sprintf(sprite_data[sprite_index++], " if (<*) > (<(*+8))\n");
-    sprintf(sprite_data[sprite_index++], "	repeat ($100-<*)\n	.byte 0\n");
-    sprintf(sprite_data[sprite_index++], "	repend\n	endif\n");
-
-    sprintf(sprite_data[sprite_index++], "%s\n", label);
-
-    for (i = 0; i < 9; ++i) {
-        bool failed_to_read = read_source_line(data);
-        if (!failed_to_read) trim_string(data, true);
-
-        if (failed_to_read
-             || (((data[0] < (unsigned char) 0x3A) && (data[0] > (unsigned char) 0x2F))) && (data[0] != 'e')) {
-
-            prerror("Error: Not enough data or missing \"end\" keyword at end of lives declaration\n");
-            exit(1);
-        }
-        line++;
-        if (!strncmp(data, "end\0", 3))
-            break;
-        sprintf(sprite_data[sprite_index++], "	.byte %s", data);
-    }
-}
-
-
-void scorecolors(char **statement) {
-    int i = 0;    //height can change
-    char data[200];
-    fprintf(outputFile, "	lda #<scoredata\n");
-    fprintf(outputFile, "	STA DF0LOW\n");
-
-    fprintf(outputFile, "	lda #((>scoredata) & $0f)\n");
-    fprintf(outputFile, "	STA DF0HI\n");
-    for (i = 0; i < 9; ++i) {
-        if (read_source_line(data)) {
-            prerror("Error: Not enough data for scorecolor declaration\n");
-            exit(1);
-        }
-        line++;
-        if (!strncmp(data, "end\0", 3))
-            break;
-        if (i == 8) {
-            prerror("Error: Missing \"end\" keyword at end of scorecolor declaration\n");
-            exit(1);
-        }
-        fprintf(outputFile, "	lda ");
-        printimmed(data);
-        fprintf(outputFile, "%s\n", data);
-        fprintf(outputFile, "	sta DF0WRITE\n");
-    }
-}
 
 enum { COLLISION_OBJ_CNT = 6 };
 const char* COLLISION_OBJ_NAMES[COLLISION_OBJ_CNT] = {
@@ -2613,7 +1581,8 @@ enum {
 };
 
 int get_collision_obj(char *param) {
-    for (int ci = 0; ci < COLLISION_OBJ_CNT; ci++) {
+    int ci;
+    for (ci = 0; ci < COLLISION_OBJ_CNT; ci++) {
         if (!strncmp(param, COLLISION_OBJ_NAMES[ci], 10)) return ci;
     }
     return -1;
@@ -4623,6 +3592,7 @@ void gosub(char **statement) {
     fprintf(outputFile, "ret_point%d\n", numjsrs);
 }
 
+
 void set(char **statement) {
     int i;
     int v;
@@ -4689,6 +3659,7 @@ void set(char **statement) {
         }
         if (!strncmp(optionValue, "size\0", 4)) {
             optimization |= 2;
+            set_kernel_size_optimization(true);
         }
         if (!strncmp(optionValue, "noinlinedata\0", 4)) {
             optimization |= 4;
@@ -4767,28 +3738,12 @@ void set(char **statement) {
             if (kernel_options == valid_kernel_combos[i++])
                 break;
         }
+
+        set_kernel_options(kernel_options);
+
     } else if (!strncmp(optionName, "kernel\0", 6)) {
-        if (!strncmp(optionValue, "multisprite\0", 11)) {
-            multisprite = 1;
-            strcpy(redefined_variables[numredefvars++], "multisprite = 1");
-            create_includes("multisprite.inc");
-            ROMpf = 1;
-        } else if (!strncmp(optionValue, "DPC\0", 3)) {
-            multisprite = 2;
-            strcpy(redefined_variables[numredefvars++], "multisprite = 2");
-            create_includes("DPCplus.inc");
-            bs = 28;
-            last_bank = 7;
-            strcpy(redefined_variables[numredefvars++], "bankswitch_hotspot = $1FF6");
-            strcpy(redefined_variables[numredefvars++], "bankswitch = 28");
-            strcpy(redefined_variables[numredefvars++], "bs_mask = 7");
-        } else if (!strncmp(optionValue, "multisprite_no_include\0", 11)) {
-            multisprite = 1;
-            strcpy(redefined_variables[numredefvars++], "multisprite = 1");
-            ROMpf = 1;
-        } else
-            prerror("set kernel: kernel name unknown or unspecified\n");
-        fprintf(stderr, "Using kernel: %s\n", optionValue);
+
+        set_kernel_type(optionValue);
     } else if (!strncmp(optionName, "debug\0", 5)) {
         if (!strncmp(optionValue, "cyclescore\0", 10)) {
             strcpy(redefined_variables[numredefvars++], "debugscore = 1");
@@ -4817,13 +3772,10 @@ void dopop() {
     fprintf(outputFile, "	pla\n");
 }
 
-
-void drawscreen() {
-    invalidate_Areg();
-    if (multisprite == 2)
-        jsrbank1("drawscreen");
-    else
-        jsr("drawscreen");
+void add_redefined_variable(char *varName, char *varValue) {
+    char var_def[200];
+    sprintf(var_def, "%s = %s", varName, varValue);
+    strcpy(redefined_variables[numredefvars++], var_def);
 }
 
 
