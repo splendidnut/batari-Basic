@@ -16,7 +16,7 @@
 // Now, since the files in the final asm can be different, and it doesn't
 // make sense to require the user to create a new batch file/shell script.
 
-void link(char *path) {
+void link_files(char *path) {
     FILE *includesfile;
     FILE *asmfile;
     char ***readbBfile;

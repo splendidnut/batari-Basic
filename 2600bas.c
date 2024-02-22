@@ -215,7 +215,7 @@ int main(int argc, char *argv[]) {
     create_includes(includes_file);
     fprintf(stderr, "2600 Basic compilation complete.\n");
 
-    link(includesPath);
+    link_files(includesPath);
     fprintf(stderr, "2600 Basic linking complete.\n");
     return 0;
 }

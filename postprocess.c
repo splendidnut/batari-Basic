@@ -28,5 +28,5 @@ int main(int argc, char *argv[]) {
         strcat(includesPath, "/includes/");
     }
 
-    link(includesPath);
+    link_files(includesPath);
 }
