@@ -116,7 +116,7 @@ void compile(FILE *outFile) {
         tokenize(statement, code, bbgetlinenumber());
 
         // check if label is necessary
-        if (statement[0][0] == '\0') {
+        if (statement[0][0] == '\0' && statement[1][0] != '\0') {
             sprintf(statement[0], "L0%d", cntUnnamedLabel++);
         } else {
             if (strchr(statement[0], '.') != NULL) {
@@ -133,6 +133,7 @@ void compile(FILE *outFile) {
 
         // process the statement
         keywords(statement);
+        fprintf(stderr, "Processed line #%d\n", bbgetlinenumber());
 
         if (numconstants == (MAXCONSTANTS - 1)) {
             fprintf(stderr, "(%d) Maximum number of constants exceeded.\n", bbgetlinenumber());

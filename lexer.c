@@ -4,10 +4,12 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include "lexer.h"
 
 
-int lexerLine = 0;      // track which line has passed thru the lexer.
+int lexerLine = 0;              // track which line has passed thru the lexer.
+bool lexerInComment = false;    // track if lexer is processing a multi-line comment
 
 /**
  * Read line from source code stream
@@ -32,6 +34,25 @@ void preprocess(char *data) {
     char lastOp = 0;
     char *src = originalStr;
     char *dst = data;
+
+    // if we're processing a multi-line comment, keep looking for the end
+    if (lexerInComment) {
+        while (*src && *src != '\n' && lexerInComment) {
+            if ((*src == '/') && (lastChar == '*')) {
+                lexerInComment = false;
+            } else {
+                lastChar = *src;
+            }
+            src++;
+        }
+
+        // if we're still in a comment, mark empty and leave
+        if (lexerInComment) {
+            dst[0] = 0;
+            lexerLine++;
+            return;
+        }
+    }
 
     while (*src && !done) {
         lastChar = c;
@@ -74,6 +95,19 @@ void preprocess(char *data) {
                 *(dst++) = c;
                 *(dst++) = ' ';
                 lastOp = c;
+                break;
+
+                // handle C-style comments
+            case '/':
+                if (*(src+1) == '*') {
+                    lexerInComment = true;
+                    done = 1;
+                } else {
+                    *(dst++) = ' ';
+                    *(dst++) = c;
+                    *(dst++) = ' ';
+                    lastOp = c;
+                }
                 break;
 
                 // process '=' and check for preceding '<' or '>'
