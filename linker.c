@@ -46,6 +46,8 @@ void link_files(char *path) {
         int line_len = strlen(line);
         if (line[line_len-1] == '\n') line[line_len-1] = 0;
 
+        printf(";-- %s\n", line);       //-- print name of file being included
+
         // check if including a portion of the bB.asm code.
         bool isBbFile = (!strncmp(line, "bB", 2)) && (line[2] == '.' || line[3] == '.');
 
@@ -82,6 +84,7 @@ void link_files(char *path) {
             while (fgets(asmline, 500, asmfile) != NULL) {
                 printf("%s", asmline);
             }
+            printf("\n\n");
             fclose(asmfile);
         }
 
