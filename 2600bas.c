@@ -211,6 +211,7 @@ int main(int argc, char *argv[]) {
     output_sprite_data();
     output_playfield_data();
     write_footer();
+    fclose(outFile);
 
     output_redefvars_file(redefVars_filename);
     create_includes(includes_file);
