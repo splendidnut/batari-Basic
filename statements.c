@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <mspcoll.h>
 #include "statements.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -1796,6 +1797,170 @@ void bvs(char *linenumber) {
 }
 
 
+void do_if_collision(char **statement, char **cstatement, int not) {
+    int bit = 0;
+    int i, k;
+
+    if (bs == 28) {
+        if ((!strncmp(statement[2], "collision(player\0", 16))
+            && ((!strncmp(statement[2] + 17, ",player\0", 7)) || (!strncmp(statement[2] + 17, ",_player\0", 7)))) {
+
+            // DPC+ custom collision
+            char firstPlayerParam = statement[2][16];
+            char secondPlayerParam = statement[2][24];
+            if (secondPlayerParam == 'r') {
+                secondPlayerParam = statement[2][25];
+            }
+
+            if (firstPlayerParam + secondPlayerParam != '0' + '1') {
+                genCode_DPCPlusCollision(firstPlayerParam, secondPlayerParam);
+                bit = 7;
+            }
+        }
+    }
+
+    if (!bit) {
+        fprintf(outputFile, "	bit ");
+        //bit = check_colls(statement[2]);
+        bit = check_collisions(&statement[2]);
+        fprintf(outputFile, "\n");
+    }
+    if (!bit)        //error
+    {
+        fprintf(stderr, "(%d) Error: Unknown collision type: %s\n", line, statement[2] + 9);
+        exit(1);
+    }
+
+
+    if (!islabel(statement)) {
+        // stmt[3] now [6] = 'then'
+        // stmt[4] now [7] = (linenum)
+        // old = 4 + 5-> new= 9
+        char *thenGotoLabel = statement[9];
+        if (!not) {
+            if (bit == 7)
+                bmi(thenGotoLabel);
+            else
+                bvs(thenGotoLabel);
+        } else {
+            if (bit == 7)
+                bpl(thenGotoLabel);
+            else
+                bvc(thenGotoLabel);
+        }
+
+    } else            // then statement
+    {
+        if (not) {
+            if (bit == 7)
+                fprintf(outputFile, "	BMI ");
+            else
+                fprintf(outputFile, "	BVS ");
+        } else {
+            if (bit == 7)
+                fprintf(outputFile, "	BPL ");
+            else
+                fprintf(outputFile, "	BVC ");
+        }
+
+        fprintf(outputFile, ".skip%s\n", statement[0]);
+        // separate statement
+        int stmtStart = 8; // old: 3 with collision() = 2
+        for (i = stmtStart; i < 200; ++i) {
+            for (k = 0; k < 200; ++k) {
+                cstatement[i - stmtStart][k] = statement[i][k];
+            }
+        }
+        fprintf(outputFile, ".condpart%d\n", condpart++);
+        keywords(cstatement);
+        fprintf(outputFile, ".skip%s\n", statement[0]);
+    }
+}
+
+void do_if_joyswitch(char **statement, char **cstatement, int not) {
+    int k;
+    int i = switchjoy(statement[2]);
+    if (!islabel(statement)) {
+        if (!i) {
+            if (not)
+                bne(statement[4]);
+            else
+                beq(statement[4]);
+        } else if (i == 1)    // bvc/bvs
+        {
+            if (not)
+                bvs(statement[4]);
+            else
+                bvc(statement[4]);
+        } else if (i == 2)    // bpl/bmi
+        {
+            if (not)
+                bmi(statement[4]);
+            else
+                bpl(statement[4]);
+        }
+    } else            // then statement
+    {
+        if (!i) {
+            if (not)
+                fprintf(outputFile, "	BEQ ");
+            else
+                fprintf(outputFile, "	BNE ");
+        }
+        if (i == 1) {
+            if (not)
+                fprintf(outputFile, "	BVC ");
+            else
+                fprintf(outputFile, "	BVS ");
+        }
+        if (i == 2) {
+            if (not)
+                fprintf(outputFile, "	BPL ");
+            else
+                fprintf(outputFile, "	BMI ");
+        }
+
+        fprintf(outputFile, ".skip%s\n", statement[0]);
+        // separate statement
+        for (i = 3; i < 200; ++i) {
+            for (k = 0; k < 200; ++k) {
+                cstatement[i - 3][k] = statement[i][k];
+            }
+        }
+        fprintf(outputFile, ".condpart%d\n", condpart++);
+        keywords(cstatement);
+        fprintf(outputFile, ".skip%s\n", statement[0]);
+    }
+}
+
+void do_if_pfread(char **statement, char **cstatement, int not) {
+    int i,k;
+    pfread(statement);
+    if (!islabel(statement)) {
+        if (not)
+            bne(statement[9]);
+        else
+            beq(statement[9]);
+
+    } else            // then statement
+    {
+        if (not)
+            fprintf(outputFile, "	BEQ ");
+        else
+            fprintf(outputFile, "	BNE ");
+
+        fprintf(outputFile, ".skip%s\n", statement[0]);
+        // separate statement
+        for (i = 8; i < 200; ++i) {
+            for (k = 0; k < 200; ++k) {
+                cstatement[i - 8][k] = statement[i][k];
+            }
+        }
+        fprintf(outputFile, ".condpart%d\n", condpart++);
+        keywords(cstatement);
+        fprintf(outputFile, ".skip%s\n", statement[0]);
+    }
+}
 
 void doif(char **statement) {
     int index = 0;
@@ -1875,168 +2040,20 @@ void doif(char **statement) {
     //--- handle special conditional checks
 
     if ((!strncmp(statement[2], "joy\0", 3)) || (!strncmp(statement[2], "switch\0", 6))) {
-        i = switchjoy(statement[2]);
-        if (!islabel(statement)) {
-            if (!i) {
-                if (not)
-                    bne(statement[4]);
-                else
-                    beq(statement[4]);
-            } else if (i == 1)    // bvc/bvs
-            {
-                if (not)
-                    bvs(statement[4]);
-                else
-                    bvc(statement[4]);
-            } else if (i == 2)    // bpl/bmi
-            {
-                if (not)
-                    bmi(statement[4]);
-                else
-                    bpl(statement[4]);
-            }
-        } else            // then statement
-        {
-            if (!i) {
-                if (not)
-                    fprintf(outputFile, "	BEQ ");
-                else
-                    fprintf(outputFile, "	BNE ");
-            }
-            if (i == 1) {
-                if (not)
-                    fprintf(outputFile, "	BVC ");
-                else
-                    fprintf(outputFile, "	BVS ");
-            }
-            if (i == 2) {
-                if (not)
-                    fprintf(outputFile, "	BPL ");
-                else
-                    fprintf(outputFile, "	BMI ");
-            }
-
-            fprintf(outputFile, ".skip%s\n", statement[0]);
-            // separate statement
-            for (i = 3; i < 200; ++i) {
-                for (k = 0; k < 200; ++k) {
-                    cstatement[i - 3][k] = statement[i][k];
-                }
-            }
-            fprintf(outputFile, ".condpart%d\n", condpart++);
-            keywords(cstatement);
-            fprintf(outputFile, ".skip%s\n", statement[0]);
-        }
+        do_if_joyswitch(statement, cstatement, not);
         freemem(dealloccstatement);
         return;
     }
 
     if (!strncmp(statement[2], "pfread\0", 6)) {
-        pfread(statement);
-        if (!islabel(statement)) {
-            if (not)
-                bne(statement[9]);
-            else
-                beq(statement[9]);
-
-        } else            // then statement
-        {
-            if (not)
-                fprintf(outputFile, "	BEQ ");
-            else
-                fprintf(outputFile, "	BNE ");
-
-            fprintf(outputFile, ".skip%s\n", statement[0]);
-            // separate statement
-            for (i = 8; i < 200; ++i) {
-                for (k = 0; k < 200; ++k) {
-                    cstatement[i - 8][k] = statement[i][k];
-                }
-            }
-            fprintf(outputFile, ".condpart%d\n", condpart++);
-            keywords(cstatement);
-            fprintf(outputFile, ".skip%s\n", statement[0]);
-        }
+        do_if_pfread(statement, cstatement, not);
         freemem(dealloccstatement);
         return;
     }
 
 
     if (!strncmp(statement[2], "collision", 9)) {
-        if (bs == 28) {
-            if ((!strncmp(statement[2], "collision(player\0", 16))
-                && ((!strncmp(statement[2] + 17, ",player\0", 7)) || (!strncmp(statement[2] + 17, ",_player\0", 7)))) {
-                
-                // DPC+ custom collision
-                char firstPlayerParam = statement[2][16];
-                char secondPlayerParam = statement[2][24];
-                if (secondPlayerParam == 'r') {
-                    secondPlayerParam = statement[2][25];
-                }
-
-                if (firstPlayerParam + secondPlayerParam != '0' + '1') {
-                    genCode_DPCPlusCollision(firstPlayerParam, secondPlayerParam);
-                    bit = 7;
-                }
-            }
-        }
-
-        if (!bit) {
-            fprintf(outputFile, "	bit ");
-            //bit = check_colls(statement[2]);
-            bit = check_collisions(&statement[2]);
-            fprintf(outputFile, "\n");
-        }
-        if (!bit)        //error
-        {
-            fprintf(stderr, "(%d) Error: Unknown collision type: %s\n", line, statement[2] + 9);
-            exit(1);
-        }
-
-
-        if (!islabel(statement)) {
-            // stmt[3] now [6] = 'then'
-            // stmt[4] now [7] = (linenum)
-            // old = 4 + 5-> new= 9
-            char *thenGotoLabel = statement[9];
-            if (!not) {
-                if (bit == 7)
-                    bmi(thenGotoLabel);
-                else
-                    bvs(thenGotoLabel);
-            } else {
-                if (bit == 7)
-                    bpl(thenGotoLabel);
-                else
-                    bvc(thenGotoLabel);
-            }
-
-        } else            // then statement
-        {
-            if (not) {
-                if (bit == 7)
-                    fprintf(outputFile, "	BMI ");
-                else
-                    fprintf(outputFile, "	BVS ");
-            } else {
-                if (bit == 7)
-                    fprintf(outputFile, "	BPL ");
-                else
-                    fprintf(outputFile, "	BVC ");
-            }
-
-            fprintf(outputFile, ".skip%s\n", statement[0]);
-            // separate statement
-            int stmtStart = 8; // old: 3 with collision() = 2
-            for (i = stmtStart; i < 200; ++i) {
-                for (k = 0; k < 200; ++k) {
-                    cstatement[i - stmtStart][k] = statement[i][k];
-                }
-            }
-            fprintf(outputFile, ".condpart%d\n", condpart++);
-            keywords(cstatement);
-            fprintf(outputFile, ".skip%s\n", statement[0]);
-        }
+        do_if_collision(statement, cstatement, not);
         freemem(dealloccstatement);
         return;
     }
