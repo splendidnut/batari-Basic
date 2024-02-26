@@ -696,7 +696,9 @@ void add_includes(char *myinclude) {
 }
 
 void add_inline(char *myinclude) {
-    fprintf(outputFile, " include %s\n", myinclude);
+    int eos = strlen(myinclude)-1;
+    if (myinclude[eos] == '\n') myinclude[eos] = 0;
+    fprintf(outputFile, " include \"%s\" \n", myinclude);
 }
 
 void init_includes(char *path) {
