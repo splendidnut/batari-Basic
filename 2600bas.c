@@ -126,10 +126,12 @@ void compile(FILE *outFile) {
 
         }
 
-        if (strncmp(statement[0], "end\0", 3)!=0)
-            fprintf(outFile, ".%s ; %s\n", statement[0], displaycode);
-        else
+        if (strncmp(statement[0], "end\0", 3)!=0) {
+            if (statement[0][0] != 0)
+                fprintf(outFile, "\n.%s ; %s\n", statement[0], displaycode);
+        } else {
             doend();
+        }
 
         // process the statement
         keywords(statement);
@@ -161,10 +163,7 @@ int main(int argc, char *argv[]) {
             case 's':
                 mySourceFileName = strdup(optarg);
                 break;
-
             case 'r':
-                //redefVars_filename = (char *) malloc(100);
-                //strcpy(redefVars_filename, optarg);
                 redefVars_filename = strdup(optarg);
                 break;
             case 'v':
