@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
-#include <mspcoll.h>
 #include "statements.h"
 #include "keywords.h"
 #include "lexer.h"
@@ -1678,11 +1676,11 @@ int check_collisions(char **statement) {
 void hotspotcheck(char *linenumber) {
     if (bs)            //if bankswitching, check for reverse branches from $1fXX that trigger hotspots...
     {
-        printf
-                (" if ( (((((#>*)&$1f)*256)|(#<.%s))>=bankswitch_hotspot) && (((((#>*)&$1f)*256)|(#<.%s))<=(bankswitch_hotspot+bs_mask)) )\n",
+        fprintf(outputFile,
+                " if ( (((((#>*)&$1f)*256)|(#<.%s))>=bankswitch_hotspot) && (((((#>*)&$1f)*256)|(#<.%s))<=(bankswitch_hotspot+bs_mask)) )\n",
                  linenumber, linenumber);
-        printf
-                ("   echo \"WARNING: branch near the end of bank %d may accidentally trigger a bankswitch. Reposition code there if bad things happen.\"\n",
+        fprintf(outputFile,
+                "   echo \"WARNING: branch near the end of bank %d may accidentally trigger a bankswitch. Reposition code there if bad things happen.\"\n",
                  bank);
         fprintf(outputFile, " endif\n");
     }
