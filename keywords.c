@@ -256,7 +256,7 @@ void keywords(char **cstatement) {
     invalidate_Areg();
 
     while (1) {
-        char *command = statement[1];
+        char *command = statement[1];       // TODO: command might contain '\n' at the end... need to figure out why.
 
         if (command[0] == '\0') {
             return;
@@ -320,7 +320,7 @@ void keywords(char **cstatement) {
                 dopop();
             else if (!strncmp(command, "set\0", 4))
                 set(statement);
-            else if (!strncmp(command, "return\0", 7))
+            else if ((!strncmp(command, "return\0", 7)) || (!strncmp(command, "return\n", 7)))
                 doreturn(statement);
             else if (!strncmp(command, "reboot\0", 7))
                 doreboot();
