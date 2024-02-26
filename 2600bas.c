@@ -75,7 +75,6 @@ void processDefs(char *code) {
 void compile(FILE *outFile) {
     char **statement;
     int i, j;
-    int cntUnnamedLabel = 0;
 
     bool failedToRead;
     char code[500];
@@ -115,10 +114,15 @@ void compile(FILE *outFile) {
         // tokenize the statement
         tokenize(statement, code, bbgetlinenumber());
 
-        // check if label is necessary
+        // check if label is necessary and needs to be generated
         if (statement[0][0] == '\0' && statement[1][0] != '\0') {
-            sprintf(statement[0], "L0%d", cntUnnamedLabel++);
+
+            // Auto-generate a label based on the current line number-base label for any 'unlabeled' lines
+            sprintf(statement[0], "L0%d", bbgetlinenumber());
+
         } else {
+
+            // Batari-Basic does not allow '.' in labels
             if (strchr(statement[0], '.') != NULL) {
                 fprintf(stderr, "(%d) Invalid character in label.\n", bbgetlinenumber());
                 exit(1);
