@@ -327,8 +327,10 @@ void keywords(char **cstatement) {
             else if (!strncmp(command, "vblank\0", 7))
                 vblank();
 
-            else if ((!strncasecmp(command, "pfcolors\0", 9)) || (!strncasecmp(command, "pfheights\0", 9))   && param[0] == ':')
-                playfieldcolorandheight(statement);
+            else if (!strncasecmp(command, "pfcolors\0", 9)  && param[0] == ':')
+                process_pfcolor(statement);
+            else if (!strncasecmp(command, "pfheights\0", 9)  && param[0] == ':')
+                process_pfheight(statement);
             else if (!strncasecmp(command, "bkcolors\0", 9)  && param[0] == ':')
                 bkcolors(statement);
             else if (!strncmp(command, "playfield\0", 10)  && param[0] == ':')

@@ -660,9 +660,14 @@ void player(char **statement) {
     }
 }
 
+/*
+    // PF colors and/or heights
+    // PFheights use offset of 21-31
+    // PFcolors use offset of 84-124
+    // if used together: playfieldblocksize-88, playfieldcolor-87
+ */
 
-
-void process_pfheight() {
+void process_pfheight(char **statement) {
     FILE *outputFile = getOutputFile();
     char data[200];
     int pfpos = 0, indexsave;
@@ -900,18 +905,6 @@ void process_pfcolor(char **statement) {
     }
 }
 
-void playfieldcolorandheight(char **statement) {
-
-    // PF colors and/or heights
-    // PFheights use offset of 21-31
-    // PFcolors use offset of 84-124
-    // if used together: playfieldblocksize-88, playfieldcolor-87
-    if (!strncasecmp(statement[1], "pfheights:\0", 9)) {
-        process_pfheight();
-    } else {           // has to be pfcolors
-        process_pfcolor(statement);
-    }
-}
 
 
 void playfield(char **statement) {
