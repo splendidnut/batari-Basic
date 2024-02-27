@@ -64,6 +64,7 @@ void preprocess(char *data) {
             case ')':
             case '+':
             case '-':
+            case '*':
             case ':':
             case ',':
                 *(dst++) = ' ';
@@ -121,6 +122,8 @@ void preprocess(char *data) {
                 *(dst++) = ' ';
                 lastOp = '=';
                 break;
+
+                // process ';' and trim off any comments
             case ';':
                 if (dst > data && (*(dst-1) == ' ')) dst--;
                 *(dst++) = '\n';  // truncate ';' line comments
@@ -128,6 +131,8 @@ void preprocess(char *data) {
                 done = 1;
                 lastOp = 0;
                 break;
+
+                // handle tab & space characters and consolidate whitespace
             case ' ':
             case 0x09:
                 if (lastChar != ' ')
@@ -157,6 +162,10 @@ void preprocess(char *data) {
 
 /**
  * Tokenize -  Break apart a statement line into individual token strings
+ *
+ * @param statement - destination for token strings
+ * @param code - line of code to break apart
+ * @param lineNum - used for printing the "Line long" warning.
  */
 void tokenize(char **statement, const char *code, int lineNum) {
     char single;
