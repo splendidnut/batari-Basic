@@ -37,6 +37,57 @@ void init_gfx_library() {
     playfield_index[0] = 0;
 }
 
+/**
+ * Check if this is a player color/graphics/range statement
+ *
+ * @param statement
+ * @return
+ */
+bool isPlayerGfxStatement(char *const *statement) {
+
+    // handle the more complicated player graphics/color/range label processing
+    bool isPlayer = (!strncmp(statement[1], "player", 6));
+    bool isSimpleLabel = (statement[2][0] == ':');
+    bool isRangeLabel = ((statement[2][0] == '-') && (statement[4][0] == ':'));
+    return isPlayer && (isSimpleLabel || isRangeLabel);
+}
+
+bool handleGraphicsCommand(char *command, const char *param, char **statement) {
+
+    //--------------------------------------------------------
+    //  All of the graphics commands (lib_gfx.c functions)
+
+    if (!strncmp(command, "pfpixel\0", 8))
+        pfpixel(statement);
+    else if (!strncmp(command, "pfhline\0", 8))
+        pfhline(statement);
+    else if (!strncmp(command, "pfclear\0", 7))
+        pfclear(statement);
+    else if (!strncmp(command, "pfvline\0", 8))
+        pfvline(statement);
+    else if (!strncmp(command, "pfscroll\0", 9))
+        pfscroll(statement);
+    else if (!strncmp(command, "drawscreen\0", 10))
+        drawscreen();
+    else if (!strncasecmp(command, "pfcolors\0", 9)  && param[0] == ':')
+        process_pfcolor(statement);
+    else if (!strncasecmp(command, "pfheights\0", 9)  && param[0] == ':')
+        process_pfheight(statement);
+    else if (!strncasecmp(command, "bkcolors\0", 9)  && param[0] == ':')
+        bkcolors(statement);
+    else if (!strncmp(command, "playfield\0", 10)  && param[0] == ':')
+        playfield(statement);
+    else if (!strncmp(command, "scorecolors\0", 12)  && param[0] == ':')
+        scorecolors(statement);
+    else if (!strncmp(command, "lives\0", 6) && param[0] == ':')
+        lives(statement);
+    else if (isPlayerGfxStatement(statement))
+        player(statement);
+    else return false;
+
+    return true;
+}
+
 
 void set_kernel_type(const char *optionValue) {
     init_gfx_library();

@@ -22,6 +22,9 @@ extern void set_kernel_size_optimization(bool isSizeOptSet);
 extern void output_sprite_data();
 extern void output_playfield_data();
 
+extern bool isPlayerGfxStatement(char *const *statement);
+extern bool handleGraphicsCommand(char *command, const char *param, char **statement);
+
 extern void pfclear(char **statement);
 extern void bkcolors(char **statement);
 extern void pfread(char **statement);

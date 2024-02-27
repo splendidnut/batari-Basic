@@ -5,7 +5,6 @@
 #include "lib_gfx.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <string.h>
 
 
@@ -302,18 +301,6 @@ void keywords(char **cstatement) {
                 next(statement);
             else if (!strncmp(command, "gosub\0", 6))
                 gosub(statement);
-            else if (!strncmp(command, "pfpixel\0", 8))
-                pfpixel(statement);
-            else if (!strncmp(command, "pfhline\0", 8))
-                pfhline(statement);
-            else if (!strncmp(command, "pfclear\0", 7))
-                pfclear(statement);
-            else if (!strncmp(command, "pfvline\0", 8))
-                pfvline(statement);
-            else if (!strncmp(command, "pfscroll\0", 9))
-                pfscroll(statement);
-            else if (!strncmp(command, "drawscreen\0", 10))
-                drawscreen();
             else if (!strncmp(command, "asm\0", 4))
                 doasm();
             else if (!strncmp(command, "pop\0", 4))
@@ -326,19 +313,6 @@ void keywords(char **cstatement) {
                 doreboot();
             else if (!strncmp(command, "vblank\0", 7))
                 vblank();
-
-            else if (!strncasecmp(command, "pfcolors\0", 9)  && param[0] == ':')
-                process_pfcolor(statement);
-            else if (!strncasecmp(command, "pfheights\0", 9)  && param[0] == ':')
-                process_pfheight(statement);
-            else if (!strncasecmp(command, "bkcolors\0", 9)  && param[0] == ':')
-                bkcolors(statement);
-            else if (!strncmp(command, "playfield\0", 10)  && param[0] == ':')
-                playfield(statement);
-            else if (!strncmp(command, "scorecolors\0", 12)  && param[0] == ':')
-                scorecolors(statement);
-            else if (!strncmp(command, "lives\0", 6) && param[0] == ':')
-                lives(statement);
             else if (!strncmp(param, "=\0", 1))
                 dolet(statement);
             else if (!strncmp(command, "let\0", 4))
@@ -358,30 +332,25 @@ void keywords(char **cstatement) {
             else if (!strncmp(command, "extra\0", 5))
                 doextra(command);
 
-            else {
-                // handle the more complicated player graphics/color/range label processing
-                bool isPlayer = (!strncmp(command, "player", 6));
-                bool isSimpleLabel = (param[0] == ':');
-                bool isRangeLabel = ((param[0] == '-') && (statement[4][0] == ':'));
+            // check for graphics command (and handle it), otherwise...
+            else if (!handleGraphicsCommand(command, param, statement)) {
 
-                if (isPlayer && (isSimpleLabel || isRangeLabel))
+                //-----------------------------------------------------------------------
+                // Not a graphics command
 
-                    player(statement);
-
-                else {
-                    //sadly, a kludge for complex statements followed by "then label"
-                    int lastc = strlen(statement[0]) - 1;
-                    if ((lastc > 3) && (((statement[0][lastc - 4] >= '0') && (statement[0][lastc - 4] <= '9')) &&
-                                        (statement[0][lastc - 3] == 't') &&
-                                        (statement[0][lastc - 2] == 'h') &&
-                                        (statement[0][lastc - 1] == 'e') && (statement[0][lastc - 0] == 'n')))
-                        return;
-                    sprintf(errorcode, "Error: Unknown keyword: %s\n", command);
-                    prerror(&errorcode[0]);
-                    print_statement_breakdown(statement);
-                    exit(1);
-                }
+                //  sadly, a kludge for complex statements followed by "then label"
+                int lastc = strlen(statement[0]) - 1;
+                if ((lastc > 3) && (((statement[0][lastc - 4] >= '0') && (statement[0][lastc - 4] <= '9')) &&
+                                    (statement[0][lastc - 3] == 't') &&
+                                    (statement[0][lastc - 2] == 'h') &&
+                                    (statement[0][lastc - 1] == 'e') && (statement[0][lastc - 0] == 'n')))
+                    return;
+                sprintf(errorcode, "Error: Unknown keyword: %s\n", command);
+                prerror(&errorcode[0]);
+                print_statement_breakdown(statement);
+                exit(1);
             }
+
         }
         // see if there is a colon
         if ((!colons) || (currentcolon == colons))
