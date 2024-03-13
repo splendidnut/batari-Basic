@@ -14,6 +14,11 @@ enum KernelType {
     DPC_PLUS_KERNEL,
 };
 
+// share sprite data collection buffer with other modules
+enum { SPRITE_DATA_ENTRY_SIZE = 50,
+    SPRITE_DATA_ENTRY_COUNT = 5000};
+extern char sprite_data[SPRITE_DATA_ENTRY_COUNT][SPRITE_DATA_ENTRY_SIZE];
+
 extern enum KernelType kernelType;
 extern void set_kernel_type(const char *optionValue);
 extern void set_kernel_options(int options);

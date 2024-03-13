@@ -19,7 +19,6 @@ int decimal = 0;
 
 char redefined_variables[500][100];
 char constants[MAXCONSTANTS][100];
-char sprite_data[SPRITE_DATA_ENTRY_COUNT][SPRITE_DATA_ENTRY_SIZE];
 
 int bs;
 int bank;
