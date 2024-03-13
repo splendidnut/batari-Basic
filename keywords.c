@@ -60,6 +60,9 @@ void keywords(char **cstatement) {
                 if (!strncmp(cstatement[i], "else\0", 4))
                     foundelse = i;
             }
+
+            // Switch items compared with ('<=', '>') around so that they
+            //    use operators ('>=','<') which are supported directly by the CPU
             if (!strncmp(cstatement[k + 3], ">\0", 2) && (!strncmp(cstatement[k + 1], "if\0", 2))
                 && (swaptest(cstatement[k + 5]))) {
                 // swap operands and switch compare
@@ -75,6 +78,8 @@ void keywords(char **cstatement) {
                 strcpy(cstatement[k + 4], cstatement[k + 3]);
                 strcpy(cstatement[k + 3], ">=");
             }
+
+            // Handle AND between two comparisons
             if (!strncmp(cstatement[k + 3], "&&\0", 2)) {
                 shiftdata(cstatement, k + 3);
                 sprintf(cstatement[k + 3], "then%d", ors++);
@@ -94,6 +99,8 @@ void keywords(char **cstatement) {
                 strcpy(cstatement[k + 9], "if");
 
             } else if (!strncmp(cstatement[k + 3], "||\0", 2)) {
+            // Handle OR between two comparisons
+
                 if (!strncmp(cstatement[k + 5], ">\0", 2) && (!strncmp(cstatement[k + 1], "if\0", 2))
                     && (swaptest(cstatement[k + 7]))) {
                     // swap operands and switch compare
