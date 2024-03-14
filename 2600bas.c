@@ -1,5 +1,6 @@
 // Provided under the GPL v2 license. See the included LICENSE.txt for details.
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,7 +10,7 @@
 #include "lexer.h"
 #include "linker.h"
 #include "lib_gfx.h"
-#include <stdbool.h>
+#include "identifiers.h"
 
 #define BB_VERSION_INFO "batari Basic v1.8 (c)2023\n"
 
@@ -209,10 +210,17 @@ int main(int argc, char *argv[]) {
     // compile
 
     init_includes(path);
+
+    if (mySourceFile != stdin) {
+        collect_identifiers();
+        fseek(mySourceFile, 0, SEEK_SET);
+    }
+
     compile(outFile);
     output_sprite_data();
     output_playfield_data();
     write_footer();
+
     fclose(outFile);
 
     output_redefvars_file(redefVars_filename);

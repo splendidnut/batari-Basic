@@ -8,6 +8,7 @@ add_executable(batari-Basic 2600bas.c
         lexer.c lexer.h
         statements.c statements.h
         keywords.c keywords.h
+        identifiers.c identifiers.h
         lib_gfx.c lib_gfx.h
         lib_dpcplus.c lib_dpcplus.h)
 
