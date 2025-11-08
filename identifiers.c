@@ -28,7 +28,7 @@
 #include "statements.h"
 #include "lexer.h"
 
-enum IdentiferType {
+enum IdentifierType {
     ID_NONE,
     ID_VARIABLE,
     ID_CONST,
@@ -234,7 +234,7 @@ void collect_identifiers() {
                 identifer[j] = 0;
 
                 // handle depending on type
-                enum IdentiferType idType = ID_NONE;
+                enum IdentifierType idType = ID_NONE;
                 if ((prevId != NULL) && (!strncmp(prevId, "const", 5))) {
                     idType = ID_CONST;
                 } else if ((prevId != NULL) && (!strncmp(prevId, "dim", 5))) {
@@ -258,5 +258,5 @@ void collect_identifiers() {
         }*/
     }
 
-    //printHashTable();
+    printHashTable();
 }
